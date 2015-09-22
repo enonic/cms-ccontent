@@ -1,0 +1,37 @@
+<html>
+<!--http://www.thymeleaf.org/whatsnew21.html-->
+<head data-th-include="fragments/head :: common"/>
+<body>
+<div id="layout">
+    <!-- Menu toggle -->
+    <a href="#menu" id="menuLink" class="menu-link">
+        <!-- Hamburger icon -->
+        <span></span>
+    </a>
+
+    <div id="menu">
+        <div class="pure-menu pure-menu-open">
+            <a class="pure-menu-heading" href="#">cContent</a>
+            <ul data-th-replace="fragments/navigation :: top"/>
+        </div>
+    </div>
+    <div id="main">
+        <div class="header">
+            <h1>cContent</h1>
+
+            <h2>Error page</h2>
+        </div>
+
+        <div class="content">
+
+            <ul data-th-if="${messages and not messages.isEmpty()}" class="messages">
+                <li data-th-each="message : ${messages}"
+                    data-th-if="${message.getMessage()!=null and not message.getMessage().isEmpty()}"
+                    data-th-class="${message.getMessageType()}"
+                    data-th-text="${message.getMessage()}"/>
+            </ul>
+        </div>
+    </div>
+</div>
+</body>
+</html>

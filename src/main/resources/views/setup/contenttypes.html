@@ -1,0 +1,15 @@
+<p>Setup contenttype mapping between source and target server</p>
+
+<section data-th-if="${sourceContenttypes!=null and !sourceContenttypes.isEmpty()}">
+    <form method="post" data-th-action="${url + '/ccontent/' + requestPath}" class="pure-form pure-form-stacked">
+        <fieldset data-th-each="contenttype: ${sourceContenttypes}">
+            <legend data-th-text="${'Mapping for contenttype ' + contenttype.getName() + ' ('+contenttype.getKey()+')'}"></legend>
+            <label data-th-attr="for=${'contenttypekey_'+contenttype.getKey()}"
+                   data-th-text="${contenttypemap!=null and contenttypemap.get(contenttype)!=null and contenttypemap.get(contenttype).getKey()!=null ? contenttypemap.get(contenttype).getKey() :''}"/>
+            <input type="text"
+                   data-th-attr="id=${'targetcontenttypekey_'+contenttype.getKey()}, name=${'targetcontenttypekey_'+contenttype.getKey()}"
+                   data-th-value="${contenttypemap!=null and contenttypemap.get(contenttype)!=null and contenttypemap.get(contenttype).getName()!=null?contenttypemap.get(contenttype).getName():(contenttypemap.get(contenttype)!=null and contenttypemap.get(contenttype).getKey()!=null?contenttypemap.get(contenttype).getKey():'')}"/>
+        </fieldset>
+        <input type="submit" class="pure-button pure-button-primary" value="Save setting"/>
+    </form>
+</section>

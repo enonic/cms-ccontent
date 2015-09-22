@@ -1,0 +1,62 @@
+<script data-th-inline="javascript">
+        var progressTimer;
+        var progressCounter;
+
+        /*<![CDATA[*/
+
+        var ajaxurl = /*[[${url + '/ccontent/ajaxStatus'}]]*/ 'nourl';
+
+        function updateProgress() {
+            $.ajax({
+                dataType: 'json',
+                url: ajaxurl,
+                context: document.body
+            }).done(function (data) {
+                $.each(data, function (i, item) {
+                    if (data[i].messageType == "progress") {
+                        $(".copyprogressbar").val(data[i].message);
+                        var percent = (parseInt($(".copyprogressbar").val()) / parseInt($(".copyprogressbar").attr("max")))*100;
+                        $('.progress-value').html(percent.toFixed(1) + '%');
+                    } else {
+                        var logPane = $('.logPane');
+                        logPane.val(logPane.val() + "\n" + data[i].message);
+                        //logPane.scrollTop(logPane[0].scrollHeight - logPane.height());
+                    }
+                });
+            });
+        }
+
+        function startCopy() {
+            $('.progress-value').html(0 + '%');
+            $(".copyprogressbar").val(0);
+            progressTimer = setInterval(function () {
+                updateProgress()
+            }, 5000);
+            var copyurl = /*[[${url + '/ccontent/ajaxstartcopy'}]]*/ 'nourl';
+            $.ajax({
+                url: copyurl
+            }).done(function () {
+                clearInterval(progressTimer);
+                updateProgress();
+            });
+        }
+        function abortCopy(){
+            var abortcopyurl = /*[[${url + '/ccontent/ajaxabortcopy'}]]*/ 'nourl';
+            $.ajax({
+                url: abortcopyurl
+            }).done(function () {
+                clearInterval(progressTimer);
+                updateProgress();
+            });
+        }
+
+    /*]]>*/
+</script>
+
+<a class="pure-button" href="javascript:startCopy()">Start copying</a>
+<a class="pure-button" href="javascript:abortCopy()">Abort copy</a>
+<div>
+    <progress value="0" class="copyprogressbar" data-th-attr="max=${sourcecategory!=null ? sourcecategory.getTotalContentCount() : 100}"/>
+    <span class="progress-value"/>
+</div>
+<textarea class="logPane" readonly="readonly"></textarea>

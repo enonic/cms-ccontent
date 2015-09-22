@@ -1,0 +1,23 @@
+<form method="post" data-th-action="${url + '/ccontent/' + requestPath}" class="pure-form pure-form-stacked">
+    <fieldset>
+        <legend>Temporary replacement for missing keys</legend>
+        <label for="missingpagekey">Missing page key <a href="#sup1"><sup>[1]</sup></a></label>
+        <input type="text" id="missingpagekey" name="missingpagekey" data-th-value="${missingpagekey}" style="width:400px"/>
+        <label for="missingimagekey">Missing image key <a href="#sup1"><sup>[1]</sup></a></label>
+        <input type="text" id="missingimagekey" name="missingimagekey" data-th-value="${missingimagekey}" style="width:400px"/>
+        <label for="missingcontentkey">Missing content key <a href="#sup1"><sup>[1]</sup></a></label>
+        <input type="text" id="missingcontentkey" name="missingcontentkey" data-th-value="${missingcontentkey}" style="width:400px"/>
+        <label for="missingattachmentkey">Missing attachment key <a href="#sup1"><sup>[1]</sup></a></label>
+        <input type="text" id="missingattachmentkey" name="missingattachmentkey" data-th-value="${missingattachmentkey}" style="width:400px"/>
+        <label for="missingfilekey">Missing file key <a href="#sup1"><sup>[1]</sup></a></label>
+        <input type="text" id="missingfilekey" name="missingfilekey" data-th-value="${missingfilekey}" style="width:400px"/>
+    </fieldset>
+    <input type="submit" class="pure-button pure-button-primary" value="Save"/>
+</form>
+
+<p id="sup1">
+    <span class="emphasis"><sup>[1]</sup>Missing page, image, content, attachment and file key</span> will be used in internal
+    page://, image://, content://, attachment:// and file:// links where the key hasn't been migrated yet. This will
+    prevent an exception when copying content and gives you a chance to trace all content with missing images, content
+    and attachments by looking at the "used by" on the dummy content in admin.
+</p>

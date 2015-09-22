@@ -1,0 +1,26 @@
+<ul data-th-fragment="top">
+    <li data-th-class="${requestPath == 'setup' ? 'pure-menu-selected ' : ''} + 'menu-item-divided'">
+        <a data-th-href="${url + '/ccontent/setup'}">Setup</a>
+    </li>
+    <span data-th-if="${sourceserverUrl!=null and sourceserverUrl!=''}" data-th-remove="tag">
+        <li data-th-class="${requestPath == 'setup/sourceserver' ? 'pure-menu-selected ' : ''} + 'menu-item-divided submenu'">
+            <a data-th-href="${url + '/ccontent/setup/sourceserver'}">|_Source server</a>
+        </li>
+        <li data-th-class="${requestPath == 'setup/sourcecategory' ? 'pure-menu-selected ' : ''} + 'menu-item-divided submenu'">
+            <a data-th-href="${url + '/ccontent/setup/sourcecategory'}">|_Source category</a>
+        </li>
+        <li data-th-class="${requestPath == 'setup/targetcategory' ? 'pure-menu-selected ' : ''} + 'menu-item-divided submenu'">
+            <a data-th-href="${url + '/ccontent/setup/targetcategory'}">|_Target category</a>
+        </li>
+        <li data-th-if="${sourcecategory!=null}" data-th-class="${requestPath == 'setup/contenttypes' ? 'pure-menu-selected ' : ''} + 'menu-item-divided submenu'">
+            <a data-th-href="${url + '/ccontent/setup/contenttypes'}">|_Contenttypes</a>
+        </li>
+        <li data-th-if="${sourcecategory!=null}" data-th-class="${requestPath == 'setup/othersettings' ? 'pure-menu-selected ' : ''} + 'menu-item-divided submenu'">
+            <a data-th-href="${url + '/ccontent/setup/othersettings'}">|_Other settings</a>
+        </li>
+        <li data-th-class="${requestPath == 'copy' ? 'pure-menu-selected ' : ''} + 'menu-item-divided'">
+            <a data-th-href="${url + '/ccontent/copy'}">Copy</a>
+        </li>
+    </span>
+</ul>
+

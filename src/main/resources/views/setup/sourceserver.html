@@ -1,0 +1,43 @@
+<form method="post" data-th-action="${url + '/ccontent/' + requestPath}" class="pure-form pure-form-stacked">
+    <fieldset>
+        <fieldset>
+            <legend>Content migration settings</legend>
+
+            <label for="migratedcontentcategory">Migrated content category<a href="#sup1"><sup>[1]</sup></a></label>
+            <input type="text" id="migratedcontentcategory" name="migratedcontentcategory" data-th-value="${migratedcontentcategory}" style="width:400px"/>
+        </fieldset>
+        <fieldset>
+            <legend>Purge migration history before copy?</legend>
+
+            <label for="option-one" class="pure-radio">
+                <input id="option-one" type="radio" name="purgeMigratedContentBeforeCopy" value="true" data-th-checked="${purgeMigratedContentBeforeCopy==true}"/>
+                Yes
+            </label>
+
+            <label for="option-two" class="pure-radio">
+                <input id="option-two" type="radio" name="purgeMigratedContentBeforeCopy" value="false" data-th-checked="${purgeMigratedContentBeforeCopy==false}"/>
+                No
+            </label>
+        </fieldset>
+        <fieldset>
+            <legend>Copy content?</legend>
+
+            <label for="option-one" class="pure-radio">
+                <input id="option-one" type="radio" name="copyContent" value="true" data-th-checked="${copyContent==true}"/>
+                Yes
+            </label>
+
+            <label for="option-two" class="pure-radio">
+                <input id="option-two" type="radio" name="copyContent" value="false" data-th-checked="${copyContent==false}"/>
+                No
+            </label>
+        </fieldset>
+    </fieldset>
+    <input type="submit" class="pure-button pure-button-primary" value="Save"/>
+</form>
+
+
+<p id="sup1">
+    <span class="emphasis"><sup>[1]</sup>Migrated content category key</span> is the key of a folder that should be
+    manually created to keep track of which content has been copied from source to target server.
+</p>

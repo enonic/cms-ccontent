@@ -1,0 +1,37 @@
+<form method="post" data-th-action="${url + '/ccontent/' + requestPath}" class="pure-form pure-form-stacked">
+    <fieldset>
+        <legend>
+            Enter the source categorykey to copy content and sub-categories from. This category folder should be located on
+            server <span data-th-text="${sourceserverUrl}"/>
+        </legend>
+        <label for="sourcecategorykey">
+            Source category key
+        </label>
+        <input type="number" id="sourcecategorykey" name="sourcecategorykey" required="required"
+               data-th-value="${sourcecategory!=null ? sourcecategory.getKey() : ''}"/>
+    </fieldset>
+    <input type="submit" class="pure-button pure-button-primary" value="Save setting"/>
+</form>
+
+<br/><br/>
+<section data-th-if="${sourcecategory}">
+    <p>
+        Current setting:
+    </p>
+    <table class="pure-table pure-table-bordered">
+        <thead>
+        <tr>
+            <td>Title</td>
+            <td>Contenttypekey</td>
+            <td>TotalContentCount</td>
+            <td>Subfolders</td>
+        </tr>
+        </thead>
+        <tr>
+            <td data-th-text="${sourcecategory.getTitle()}"/>
+            <td data-th-text="${sourcecategory.getContenttypeKey()}"/>
+            <td data-th-text="${sourcecategory.getTotalContentCount()}"/>
+            <td data-th-text="${sourcecategory.categories.size()}"/>
+        </tr>
+    </table>
+</section>

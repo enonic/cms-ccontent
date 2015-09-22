@@ -1,0 +1,39 @@
+<div>
+    <form method="post" data-th-action="${url + '/ccontent/' + requestPath}" class="pure-form pure-form-stacked">
+        <fieldset>
+            <legend>Source server - <span class="smaller">use userstore\username if not in default userstore</span></legend>
+            <label for="sourceserverUrl">Sourceserver URL <a href="#sup1"><sup>[1]</sup></a></label>
+            <input type="text" id="sourceserverUrl" name="sourceserverUrl" data-th-value="${sourceserverUrl}" style="width:400px"/>
+            <input type="text" name="sourceserverUsername" id="sourceserverUsername" placeholder="sourceserver username"
+                   data-th-value="${sourceserverUsername!=null ? sourceserverUsername : ''}"/>
+            <input type="password" name="sourceserverPassword" id="sourceserverPassword" placeholder="source server password"
+                   data-th-value="${sourceserverPassword!=null ? sourceserverPassword : ''}"/>
+        </fieldset>
+        <fieldset>
+            <legend>Target server - <span class="smaller">use userstore\username if not in default userstore</span></legend>
+            <label for="targetserverUrl">Targetserver URL <a href="#sup1"><sup>[2]</sup></a></label>
+            <input type="text" id="targetserverUrl" name="targetserverUrl" data-th-value="${targetserverUrl}" style="width:400px"/>
+
+            <input type="text" name="targetserverUsername" id="targetserverUsername" placeholder="this server username"
+                   data-th-value="${targetserverUsername!=null ? targetserverUsername : ''}"/>
+            <input type="password" name="targetserverPassword" id="targetserverPassword" placeholder="this server password"
+                   data-th-value="${targetserverPassword!=null ? targetserverPassword : ''}"/>
+            <input type="hidden" name="cmd" value="setupAuthentication"/>
+            <input type="submit" value="Save" class="pure-button pure-button-primary"/>
+        </fieldset>
+    </form>
+    <p id="sup1">
+        <span class="emphasis"><sup>[1]</sup>Sourceserver URL</span> is the remote server (f.x. http://localhost:8082/rpc/bin) <a
+            target="_blank" href="https://enonic.com/en/docs/enonic-cms-47?page=RPC+Development">rpc bin endpoint</a> which
+        you want to copy content FROM,
+        <span class="emphasis">cms.security.rpc.enabled=true</span> must be set in cms.properties for this server, and
+        firewall has to allow access between this and that server.
+    </p>
+    <p id="sup2">
+        <span class="emphasis"><sup>[2]</sup>Targetserer URL</span> is the target server (f.x. http://localhost:8080/rpc/bin) <a
+            target="_blank" href="https://enonic.com/en/docs/enonic-cms-47?page=RPC+Development">rpc bin endpoint</a> which
+        you want to copy content TO,
+        <span class="emphasis">cms.security.rpc.enabled=true</span> must be set in cms.properties for this server, and
+        firewall has to allow access between this and that server.
+    </p>
+</div>

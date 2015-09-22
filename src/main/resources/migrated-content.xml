@@ -1,0 +1,44 @@
+<contenttype>
+    <config name="Migrated content" version="1.0">
+        <form>
+            <title name="title" />
+            <block name="Content info">
+                <input name="title" readonly="true" required="true" type="text">
+                    <display>Title</display>
+                    <xpath>contentdata/title</xpath>
+                </input>
+                <input name="type" readonly="true" required="true" type="text">
+                    <display>Type</display>
+                    <xpath>contentdata/type</xpath>
+                </input>
+            </block>
+            <block name="Old">
+                <input name="oldkey" readonly="true" required="true" type="text" validate="integer">
+                    <display>Old content key</display>
+                    <xpath>contentdata/oldkey</xpath>
+                </input>
+                <input name="oldcontenttype" readonly="true" required="false" type="text">
+                    <display>Old contenttype</display>
+                    <xpath>contentdata/oldcontenttype</xpath>
+                </input>
+            </block>
+            <block name="New">
+                <input name="newkey" readonly="false" required="true" type="text" validate="integer">
+                    <display>New content key</display>
+                    <xpath>contentdata/newkey</xpath>
+                </input>
+                <input name="newcontenttype" readonly="true" required="false" type="text">
+                    <display>New contenttype</display>
+                    <xpath>contentdata/newcontenttype</xpath>
+                </input>
+            </block>
+        </form>
+    </config>
+    <indexparameters>
+        <index xpath="contentdata/type" />
+        <index xpath="contentdata/oldkey" />
+        <index xpath="contentdata/newkey" />
+        <index xpath="contentdata/oldcontenttype" />
+        <index xpath="contentdata/newcontenttype" />
+    </indexparameters>
+</contenttype>

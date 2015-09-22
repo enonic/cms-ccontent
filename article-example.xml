@@ -1,0 +1,242 @@
+<contenttype>
+    <config name="article" version="1.0">
+        <form>
+            <title name="heading" />
+            <block name="Artikkel">
+                <input name="heading" required="true" type="text">
+                    <display>Tittel</display>
+                    <xpath>contentdata/heading</xpath>
+                </input>
+                <input multiple="false" name="miniheading" type="relatedcontent">
+                    <display>Stikktittel</display>
+                    <xpath>contentdata/miniheading</xpath>
+                    <contenttype name="KS-stikktittel" />
+                </input>
+                <input name="preface" type="textarea">
+                    <display>Ingress</display>
+                    <xpath>contentdata/preface</xpath>
+                    <help>Maksikum x antall tegn.</help>
+                </input>
+                <input name="authors" type="relatedcontent">
+                    <display>Forfattere</display>
+                    <xpath>contentdata/authors</xpath>
+                    <contenttype name="kontakt" />
+                </input>
+                <input config="document" mode="xhtml" name="body" required="true" type="htmlarea">
+                    <display>Brødtekst</display>
+                    <xpath>contentdata/body</xpath>
+                </input>
+                <input name="themes" type="relatedcontent">
+                    <display>Temaer</display>
+                    <xpath>contentdata/themes</xpath>
+                    <contenttype name="KS-tema" />
+                </input>
+            </block>
+            <block name="Listebilde">
+                <input name="imagelist-teaserimage" type="image">
+                    <display>Listebilde</display>
+                    <xpath>contentdata/imagelist-teaserimage</xpath>
+                    <help>Dette bildet vises på forsiden i listen over Aktuelt-artikler</help>
+                </input>
+                <input name="imagelist-teasertext" type="text">
+                    <display>Bildetekst</display>
+                    <xpath>contentdata/imagelist-teasertext</xpath>
+                    <help>Bildet hjelper svaksynte</help>
+                </input>
+            </block>
+            <block name="Artikkelbilder">
+                <input name="imagecontent" type="image">
+                    <display>Bilde</display>
+                    <xpath>contentdata/image/imagecontent</xpath>
+                </input>
+                <input name="imagedescription" type="text">
+                    <display>Bildetekst</display>
+                    <xpath>contentdata/image/imagedescription</xpath>
+                </input>
+                <input name="imagephotographer" type="text">
+                    <display>Fotograf</display>
+                    <xpath>contentdata/image/imagephotographer</xpath>
+                </input>
+            </block>
+            <block name="Omtalt publikasjon">
+                <input multiple="false" name="publication" type="relatedcontent">
+                    <display>Omtalt publikasjon</display>
+                    <xpath>contentdata/publication</xpath>
+                    <contenttype name="KS-publication" />
+                </input>
+            </block>
+            <block group="contentdata/alternativetitles" name="Alternative titler">
+                <input name="alternativetitle" type="text">
+                    <display>Alternativ tittel</display>
+                    <xpath>alternativetitle</xpath>
+                </input>
+            </block>
+            <block name="Emneord MESH">
+                <input name="mesh-word" type="text">
+                    <display>Emneord MESH</display>
+                    <xpath>contentdata/mesh-word</xpath>
+                    <help>Bruk reelle MESH-termer. Komma mellom ordene.</help>
+                </input>
+                <input name="free-word" required="false" type="text">
+                    <display>Emneord, frie</display>
+                    <xpath>contentdata/free-word</xpath>
+                    <help>Skriv ord med komma mellom.</help>
+                </input>
+            </block>
+            <block name="Bokser i margen">
+                <input multiple="true" name="boxes" type="relatedcontent">
+                    <display>Boks</display>
+                    <xpath>contentdata/boxes</xpath>
+                    <contenttype name="NOKC-box" />
+                </input>
+            </block>
+            <block name="Relaterte publikasjoner">
+                <input name="relpubtitle" type="text">
+                    <display>Tittel på boks</display>
+                    <default>Relaterte publikasjoner</default>
+                    <xpath>contentdata/relpubtitle</xpath>
+                </input>
+                <input name="publications" type="relatedcontent">
+                    <display>Publikasjoner</display>
+                    <xpath>contentdata/publications</xpath>
+                    <contenttype name="KS-publication" />
+                </input>
+            </block>
+            <block name="Relaterte nyheter/artikler">
+                <input name="relnewstitle" type="text">
+                    <display>Tittel på boks</display>
+                    <default>Relaterte nyheter/artikler</default>
+                    <xpath>contentdata/relnewstitle</xpath>
+                </input>
+                <input name="articles" type="relatedcontent">
+                    <display>Artikler</display>
+                    <xpath>contentdata/articles</xpath>
+                    <contenttype name="NOKC-article" />
+                </input>
+            </block>
+            <block name="Relaterte lenker">
+                <input name="rellinkstitle" type="text">
+                    <display>Tittel på boks</display>
+                    <default>Relaterte lenker</default>
+                    <xpath>contentdata/rellinkstitle</xpath>
+                </input>
+                <input name="links" type="relatedcontent">
+                    <display>Lenker</display>
+                    <xpath>contentdata/links</xpath>
+                    <contenttype name="KS-lenke" />
+                </input>
+            </block>
+            <block name="Relaterte personer">
+                <input name="relpersonsstitle" type="text">
+                    <display>Tittel på boks</display>
+                    <default>Relaterte personer</default>
+                    <xpath>contentdata/relpersonsstitle</xpath>
+                </input>
+                <input name="persons" type="relatedcontent">
+                    <display>Personer</display>
+                    <xpath>contentdata/persons</xpath>
+                    <contenttype name="NOKC-person" />
+                </input>
+            </block>
+            <block name="Relaterte prosjekter">
+                <input name="relprojectstitle" type="text">
+                    <display>Tittel på boks</display>
+                    <default>Relaterte prosjekter</default>
+                    <xpath>contentdata/relprojectstitle</xpath>
+                </input>
+                <input name="projects" type="relatedcontent">
+                    <display>Prosjekter</display>
+                    <xpath>contentdata/projects</xpath>
+                    <contenttype name="KS-project" />
+                </input>
+            </block>
+            <block name="Tittel til relaterte filer">
+                <input name="relfilestitle" type="text">
+                    <display>Tittel på boks</display>
+                    <default>Relaterte filer</default>
+                    <xpath>contentdata/relfilestitle</xpath>
+                </input>
+            </block>
+            <block group="contentdata/files/file" name="Relaterte filer">
+                <input name="files" type="file">
+                    <display>Fil</display>
+                    <xpath>files</xpath>
+                </input>
+                <input name="filedescription" type="text">
+                    <display>Beskrivelse</display>
+                    <xpath>filedescription</xpath>
+                </input>
+            </block>
+        </form>
+        <imports>
+            <import mode="xml" name="ccontent">
+                <mapping dest="heading" src="heading" />
+                <mapping dest="boxes" src="textboxes" />
+                <mapping dest="miniheading" src="miniheading" />
+                <mapping dest="preface" src="preface" />
+                <mapping dest="imagelist-teaserimage" src="teaserimage" />
+                <mapping dest="imagelist-teasertext" src="teaser-alttekst" />
+                <mapping dest="imagecontent" src="images/image/images" />
+                <mapping dest="imagedescription" src="images/image/description" />
+                <mapping dest="body" src="text" />
+                <mapping dest="relpubtitle" src="relpubtitle" />
+                <mapping dest="publications" src="publications" />
+                <mapping dest="relnewstitle" src="relnewstitle" />
+                <mapping dest="articles" src="articles" />
+                <mapping dest="rellinkstitle" src="rellinkstitle" />
+                <mapping dest="links" src="links" />
+                <mapping dest="relpersonsstitle" src="relpersonsstitle" />
+                <mapping dest="persons" src="persons" />
+                <mapping dest="relprojectstitle" src="relprojectstitle" />
+                <mapping dest="projects" src="projects" />
+                <mapping dest="relfilestitle" src="relfilesstitle" />
+                <mapping dest="files" src="files" />
+                <mapping dest="filedescription" src="filedescription" />
+                <mapping dest="publication" src="publicationlink" />
+                <mapping dest="themes" src="themes" />
+                <!--<block base="contentdata/images/image" dest="Artikkelbilder">
+                    <mapping dest="imagecontent" src="images" />
+                    <mapping dest="imagedescription" src="description" />
+                </block>-->
+                <block base="contentdata/files/file" dest="Relaterte filer">
+                    <mapping dest="files" src="files" />
+                    <mapping dest="filedescription" src="filedescription" />
+                </block>
+            </import>
+        </imports>
+    </config>
+    <browse>
+        <column orderby="contentdata/heading" title="Tittel">
+            <xpath>contentdata/heading</xpath>
+        </column>
+        <column columnalign="left" orderby="@publishfrom" title="Publisert" titlealign="left">
+            <date xpath="@publishfrom" />
+        </column>
+        <column columnalign="left" orderby="@timestamp" title="Sist endret" titlealign="left">
+            <timestamp />
+            <text>av</text>
+            <modifier />
+        </column>
+    </browse>
+    <indexparameters>
+        <index xpath="data/heading" />
+        <index name="miniheading" xpath="data/miniheading/@key" />
+        <index xpath="data/freetext-content" />
+        <index name="relPersons" xpath="data/persons/content/@key" />
+        <index name="relProjects" xpath="data/projects/content/@key" />
+        <index name="relPublications" xpath="data/publications/content/@key" />
+        <index name="relArticles" xpath="data/articles/content/@key" />
+        <index name="relLinks" xpath="data/links/content/@key" />
+        <index name="relOmtalt" xpath="data/publication/@key" />
+        <index name="relAuthors" xpath="data/authors/content/@key" />
+        <index name="relThemes" xpath="data/themes/content/@key" />
+        <index name="nokcBox" xpath="contentdata/boxes/content/@key" />
+        <index name="articleImage" xpath="data/image/imagecontent/@key" />
+        <index name="articleFiles" xpath="data/files/file/files/file/@key" />
+        <index name="teaserImage" xpath="data/imagelist-teaserimage/@key" />
+        <index name="omtalt1" xpath="contentdata/link-talk" />
+        <index name="omtalt2" xpath="contentdata/link-title" />
+        <index name="artikkelbilder" xpath="contentdata/image/imagecontent/@key" />
+        <index name="body" xpath="data/body" />
+    </indexparameters>
+</contenttype>

@@ -1,0 +1,50 @@
+<form method="post" data-th-action="${url + '/ccontent/' + requestPath}" class="pure-form pure-form-stacked">
+    <fieldset>
+        <legend>
+            Enter the categorykey to copy content and sub-categories to. This category folder should be located on
+            _this_ server.
+        </legend>
+        <label for="targetcategorykey">
+            Category key
+        </label>
+        <input type="number" id="targetcategorykey" name="targetcategorykey" required="required"
+               data-th-value="${targetcategory!=null ? targetcategory.getKey() : ''}"/>
+
+
+     </fieldset>
+    <fieldset>
+        <legend>Purge folder before copy (delete existing subfolders)?</legend>
+
+        <label for="option-one" class="pure-radio">
+            <input id="option-one" type="radio" name="purgeTargetFolderBeforeCopy" value="true" data-th-checked="${purgeTargetFolderBeforeCopy==true}"/>
+            Yes
+        </label>
+
+        <label for="option-two" class="pure-radio">
+            <input id="option-two" type="radio" name="purgeTargetFolderBeforeCopy" value="false" data-th-checked="${purgeTargetFolderBeforeCopy==false}"/>
+            No
+        </label>
+    </fieldset>
+    <input type="submit" class="pure-button pure-button-primary" value="Save setting"/>
+</form>
+
+<br/><br/>
+
+<section data-th-if="${targetcategory}">
+    <p>
+        Current setting:
+    </p>
+
+    <table class="pure-table pure-table-bordered">
+        <thead>
+        <tr>
+            <td>Title</td>
+            <td>Contenttypekey</td>
+        </tr>
+        </thead>
+        <tr>
+            <td data-th-text="${targetcategory.getTitle()}"/>
+            <td data-th-text="${targetcategory.getContenttypeKey()}"/>
+        </tr>
+    </table>
+</section>
