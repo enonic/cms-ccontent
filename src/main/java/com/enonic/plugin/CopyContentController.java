@@ -1157,8 +1157,14 @@ public class CopyContentController extends HttpController {
                                 addInfoMessage(mappingObjectHolder.toString());
                                 contentDataInput.add(MappingRules.getInput(mappingObjectHolder));
                             } else if ("text".equals(sourceInputType)) {
-                                Input input = new TextInput(destInput, contentInputEl.getValue());
-                                contentDataInput.add(input);
+                                if (targetInputType != null && targetInputType.equalsIgnoreCase("textarea")) {
+                                    LOG.info("to textarea ");
+                                    TextAreaInput input = new TextAreaInput(destInput, contentInputEl.getValue());
+                                    contentDataInput.add(input);
+                                } else {
+                                    Input input = new TextInput(destInput, contentInputEl.getValue());
+                                    contentDataInput.add(input);
+                                }
                             } else if ("url".equals(sourceInputType)) {
                                 UrlInput input = new UrlInput(destInput, contentInputEl.getValue());
                                 contentDataInput.add(input);
@@ -1255,24 +1261,12 @@ public class CopyContentController extends HttpController {
                                     contentDataInput.add(input);
                                 }
                             } else if ("htmlarea".equals(sourceInputType)) {
-                                if (!(("keymessages".equals(destInput) || "summary".equals(destInput)) && isMigratedContentModifiedByCustomer)) {
-                                    List<Element> htmlElements = contentInputEl.getChildren();
-
-                                    if (htmlElements != null && !htmlElements.isEmpty()) {
-                                        try {
-                                            addInfoMessage("Scanning htmlArea " + destInput + " for internal links..");
-                                            scanHtmlAreaForInternalLinks(htmlElements);
-                                        } catch (Exception e) {
-                                            addErrorMessage("Error while scanning for internal links" + e);
-                                        }
-                                        //addInfoMessage("Add htmlElements " + htmlElements + " to contentDataInput");
-
-                                        contentDataInput.add(new HtmlAreaInput(destInput, xmlOutputter.outputString(htmlElements)));
-                                    } else {
-                                        contentDataInput.add(new HtmlAreaInput(destInput, xmlOutputter.outputString(contentInputEl)));
-                                    }
+                                if (targetInputType != null && targetInputType.equalsIgnoreCase("textarea")) {
+                                    LOG.info("to textarea ");
+                                    TextAreaInput input = new TextAreaInput(destInput, StringUtils.trim(contentInputEl.getValue()));
+                                    contentDataInput.add(input);
                                 } else {
-                                    addInfoMessage("Content " + displayName + " has been modified by customer, don't overwrite manual changes for keymessages or summary for KS-publications!");
+                                    contentDataInput.add(new HtmlAreaInput(destInput, xmlOutputter.outputString(contentInputEl)));
                                 }
                             } else if ("relatedcontent".equals(sourceInputType)) {
                                 String multiple = targetInputEl.getAttributeValue("multiple");
