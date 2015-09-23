@@ -3,6 +3,7 @@ package com.enonic.plugin;
 
 import com.enonic.cms.api.client.model.content.Input;
 import com.enonic.cms.api.client.model.content.SelectorInput;
+import com.google.common.base.Strings;
 import org.jdom.Element;
 import org.jdom.xpath.XPath;
 import org.slf4j.Logger;
@@ -26,6 +27,16 @@ public class MappingRules {
                 "size".equals(mappingObjectHolder.getInputMapping().getAttributeValue("src")) &&
                 "image-size".equals(mappingObjectHolder.getInputMapping().getAttributeValue("dest"))) {
             return true;
+        }else if ("HB-lenke".equals(mappingObjectHolder.getTargetContenttype().getName()) &&
+                "lenke".equals(mappingObjectHolder.getSourceContenttype().getName()) &&
+                "type".equals(mappingObjectHolder.getInputMapping().getAttributeValue("src")) &&
+                "guideline-type".equals(mappingObjectHolder.getInputMapping().getAttributeValue("dest"))) {
+            return true;
+        }else if ("HB-lenke".equals(mappingObjectHolder.getTargetContenttype().getName()) &&
+                "lenke".equals(mappingObjectHolder.getSourceContenttype().getName()) &&
+                "fileFormat".equals(mappingObjectHolder.getInputMapping().getAttributeValue("src")) &&
+                "file-format".equals(mappingObjectHolder.getInputMapping().getAttributeValue("dest"))) {
+            return true;
         }
         return false;
     }
@@ -42,8 +53,79 @@ public class MappingRules {
                 "size".equals(mappingObjectHolder.getInputMapping().getAttributeValue("src")) &&
                 "image-size".equals(mappingObjectHolder.getInputMapping().getAttributeValue("dest"))) {
             return handleHBArticleListImageDropdownMapping(mappingObjectHolder);
+        }else if ("HB-lenke".equals(mappingObjectHolder.getTargetContenttype().getName()) &&
+                "lenke".equals(mappingObjectHolder.getSourceContenttype().getName()) &&
+                "type".equals(mappingObjectHolder.getInputMapping().getAttributeValue("src")) &&
+                "guideline-type".equals(mappingObjectHolder.getInputMapping().getAttributeValue("dest"))) {
+            return handleHBLenkeGuidelineTypeMapping(mappingObjectHolder);
+        }else if ("HB-lenke".equals(mappingObjectHolder.getTargetContenttype().getName()) &&
+                "lenke".equals(mappingObjectHolder.getSourceContenttype().getName()) &&
+                "fileFormat".equals(mappingObjectHolder.getInputMapping().getAttributeValue("src")) &&
+                "file-format".equals(mappingObjectHolder.getInputMapping().getAttributeValue("dest"))) {
+            return handleHBLenkeFileFormatMapping(mappingObjectHolder);
         }
         return null;
+    }
+
+    private static Input handleHBLenkeFileFormatMapping(MappingObjectHolder mappingObjectHolder) {
+        HashMap<String,String> dropdownMappings = new HashMap<String,String>();
+        dropdownMappings.put("excel","Excel");
+        dropdownMappings.put("open-office","Open");
+        dropdownMappings.put("pdf","PDF");
+        dropdownMappings.put("power-point","Powerpoint");
+        dropdownMappings.put("word","Word");
+
+        String destInput = mappingObjectHolder.getInputMapping().getAttributeValue("dest");
+        SelectorInput input = new SelectorInput(destInput,null);
+
+        String textValue = mappingObjectHolder.getContentInputElement().getValue();
+        if (Strings.isNullOrEmpty(textValue)){
+            return input;
+        }
+
+        List<String> legalDropdownValues = getLegalSelectorValues(mappingObjectHolder);
+        for (String legalDropdownValue:legalDropdownValues){
+            if (textValue.indexOf(dropdownMappings.get(legalDropdownValue))!=-1){
+                input = new SelectorInput(destInput, legalDropdownValue);
+                break;
+            }
+        }
+
+        return input;
+    }
+
+    private static Input handleHBLenkeGuidelineTypeMapping(MappingObjectHolder mappingObjectHolder) {
+        HashMap<String,String> dropdownMappings = new HashMap<String,String>();
+        dropdownMappings.put("recommendation","Behandlingsanbefalinger");
+        dropdownMappings.put("european-clinical-guideline","Europeisk retningslinje");
+        dropdownMappings.put("guidance","Handlingsprogrammer");
+        dropdownMappings.put("international-clinical-guideline","Internasjonal retningslinje");
+        dropdownMappings.put("handbook-with-procedures-and-guidelines","Metodebøker");
+        dropdownMappings.put("prioritisation-guidance","Nasjonale prioriteringsveiledere");
+        dropdownMappings.put("national-clinical-guideline","Nasjonale retningslinjer");
+        dropdownMappings.put("national-guidance","Nasjonale veiledere");
+        dropdownMappings.put("nordic-clinical-guideline","Nordisk retningslinje");
+        dropdownMappings.put("procedure","Prosedyrer");
+        dropdownMappings.put("clinical-health-guideline","Retningslinjer");
+        dropdownMappings.put("clinical-guidance","Veiledere");
+
+        String destInput = mappingObjectHolder.getInputMapping().getAttributeValue("dest");
+        SelectorInput input = new SelectorInput(destInput,null);
+
+        String textValue = mappingObjectHolder.getContentInputElement().getValue();
+        if (Strings.isNullOrEmpty(textValue)){
+            return input;
+        }
+
+        List<String> legalDropdownValues = getLegalSelectorValues(mappingObjectHolder);
+        for (String legalDropdownValue:legalDropdownValues){
+            if (textValue.indexOf(dropdownMappings.get(legalDropdownValue))!=-1){
+                input = new SelectorInput(destInput, legalDropdownValue);
+                break;
+            }
+        }
+
+        return input;
     }
 
     private static Input handleHBArticleListImageDropdownMapping(MappingObjectHolder mappingObjectHolder) {
@@ -56,7 +138,7 @@ public class MappingRules {
         SelectorInput input = new SelectorInput(destInput,null);
 
         String textValue = mappingObjectHolder.getContentInputElement().getValue();
-        if (textValue==null){
+        if (Strings.isNullOrEmpty(textValue)){
             return input;
         }
 
@@ -85,7 +167,7 @@ public class MappingRules {
         SelectorInput input = new SelectorInput(destInput,null);
 
         String textValue = mappingObjectHolder.getContentInputElement().getValue();
-        if (textValue==null){
+        if (Strings.isNullOrEmpty(textValue)){
             return input;
         }
 
