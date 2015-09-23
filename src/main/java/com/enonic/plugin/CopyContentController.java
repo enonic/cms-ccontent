@@ -1033,47 +1033,44 @@ public class CopyContentController extends HttpController {
                                     //Iterate every mapping element in the import config
                                     Iterator<Element> blockGroupInputElementsIt = blockGroupInputMappingElements.iterator();
                                     while (blockGroupInputElementsIt.hasNext()) {
-                                        Element inputMapping = blockGroupInputElementsIt.next();
-                                        String groupInputSrc = inputMapping.getAttribute("src").getValue();
-                                        String groupInputDest = inputMapping.getAttribute("dest").getValue();
-                                        Element sourceInputEl = ((Element) XPath.selectSingleNode(sourceContenttypeDoc, "//input[xpath='" + groupInputSrc + "']"));
-                                        Element targetInputEl = ((Element) XPath.selectSingleNode(targetContenttypeDoc, "//input[@name='" + groupInputDest + "']"));
-                                        String sourceInputType = sourceInputEl.getAttributeValue("type");
-                                        String targetInputType = targetInputEl.getAttributeValue("type");
-                                        addInfoMessage("Add " + sourceInputType + " " + groupInputSrc + " to " + targetInputType + " " + groupInputDest);
-
+                                        //TODO: Somewhat cluncky design here. Setters dependent on order.
                                         MappingObjectHolder mappingObjectHolder = new MappingObjectHolder();
+                                        mappingObjectHolder.setInputMapping(blockGroupInputElementsIt.next());
                                         mappingObjectHolder.setSourceContenttype(sourceContenttype);
                                         mappingObjectHolder.setTargetContenttype(targetContenttype);
-                                        mappingObjectHolder.setTargetInputElement(targetInputEl);
-                                        mappingObjectHolder.setSourceInputElement(sourceInputEl);
-                                        mappingObjectHolder.setInputMapping(inputMapping);
-                                        mappingObjectHolder.setContentInputElement(blockGroupContent.getChild(groupInputSrc));
+                                        mappingObjectHolder.setSourceInputElement(
+                                                ((Element) XPath.selectSingleNode(sourceContenttypeDoc, "//input[xpath='" + mappingObjectHolder.getInputMappingSrc() + "']")));
+                                        mappingObjectHolder.setTargetInputElement(
+                                                ((Element) XPath.selectSingleNode(targetContenttypeDoc, "//input[@name='" + mappingObjectHolder.getInputMappingDest() + "']")));
+                                        mappingObjectHolder.setContentInputElement(blockGroupContent.getChild(mappingObjectHolder.getInputMappingSrc()));
+
+                                        addInfoMessage("Add " + mappingObjectHolder.getSourceInputType() + " " + mappingObjectHolder.getInputMappingSrc() + " to " + mappingObjectHolder.getTargetInputType() + " " + mappingObjectHolder.getInputMappingDest());
+
 
                                         if (MappingRules.hasSpecialHandling(mappingObjectHolder)) {
-                                            addInfoMessage("Handling special input " + inputMapping.getAttributeValue("dest") + " for contenttype " + targetContenttype.getName());
+                                            addInfoMessage("Handling special input " + mappingObjectHolder.getInputMappingDest() + " for contenttype " + mappingObjectHolder.getTargetContenttype().getName());
                                             addInfoMessage(mappingObjectHolder.toString());
                                             groupInput.add(MappingRules.getInput(mappingObjectHolder));
-                                        } else if ("text".equals(sourceInputType)) {
-                                            groupInput.add(new TextInput(groupInputDest, blockGroupContent.getChild(groupInputSrc).getValue()));
-                                        } else if ("image".equals(sourceInputType)) {
-                                            Attribute imageKeyAttr = blockGroupContent.getChild(groupInputSrc).getAttribute("key");
+                                        } else if ("text".equals(mappingObjectHolder.getSourceInputType())) {
+                                            groupInput.add(new TextInput(mappingObjectHolder.getInputMappingDest(), blockGroupContent.getChild(mappingObjectHolder.getInputMappingSrc()).getValue()));
+                                        } else if ("image".equals(mappingObjectHolder.getSourceInputType())) {
+                                            Attribute imageKeyAttr = blockGroupContent.getChild(mappingObjectHolder.getInputMappingSrc()).getAttribute("key");
                                             if (imageKeyAttr != null) {
                                                 addInfoMessage("Old image key" + imageKeyAttr.getValue());
                                                 Integer newImageKey = getExistingMigratedContentOrCategoryKey(imageKeyAttr.getIntValue(), "image");
                                                 if (newImageKey != null) {
                                                     addInfoMessage("New image key" + newImageKey);
-                                                    groupInput.add(new ImageInput(groupInputDest, newImageKey));
+                                                    groupInput.add(new ImageInput(mappingObjectHolder.getInputMappingDest(), newImageKey));
                                                 }
                                             }
-                                        } else if ("checkbox".equals(sourceInputType)) {
-                                            groupInput.add(new BooleanInput(groupInputDest, Boolean.parseBoolean(blockGroupContent.getValue())));
-                                        } else if ("radiobutton".equals(sourceInputType)) {
-                                            groupInput.add(new SelectorInput(groupInputDest, blockGroupContent.getValue()));
-                                        } else if ("file".equals(sourceInputType)) {
+                                        } else if ("checkbox".equals(mappingObjectHolder.getSourceInputType())) {
+                                            groupInput.add(new BooleanInput(mappingObjectHolder.getInputMappingDest(), Boolean.parseBoolean(blockGroupContent.getValue())));
+                                        } else if ("radiobutton".equals(mappingObjectHolder.getSourceInputType())) {
+                                            groupInput.add(new SelectorInput(mappingObjectHolder.getInputMappingDest(), blockGroupContent.getValue()));
+                                        } else if ("file".equals(mappingObjectHolder.getSourceInputType())) {
                                             Integer fileKey = null;
                                             try {
-                                                fileKey = blockGroupContent.getChild(groupInputSrc).getChild("file").getAttribute("key").getIntValue();
+                                                fileKey = blockGroupContent.getChild(mappingObjectHolder.getInputMappingSrc()).getChild("file").getAttribute("key").getIntValue();
                                             } catch (Exception e) {
                                             }
                                             if (fileKey == null) {
@@ -1083,9 +1080,9 @@ public class CopyContentController extends HttpController {
                                             Integer newKey = getExistingMigratedContentOrCategoryKey(fileKey, "file");
                                             if (newKey != null) {
                                                 addInfoMessage("Found migrated file content, adding to migrated content");
-                                                groupInput.add(new FileInput(groupInputDest, newKey));
+                                                groupInput.add(new FileInput(mappingObjectHolder.getInputMappingDest(), newKey));
                                             }
-                                        } else if ("textarea".equals(sourceInputType)) {
+                                        } else if ("textarea".equals(mappingObjectHolder.getSourceInputType())) {
                                             LOG.warn("Not implemented! migration of text in block group");
                                             //TODO: implement migration of textarea in block group
                                             /*if (targetInputType!=null && targetInputType.equalsIgnoreCase("htmlarea")){
@@ -1096,7 +1093,7 @@ public class CopyContentController extends HttpController {
                                                 TextAreaInput input = new TextAreaInput(groupInputDest, sourceInputEl.getValue());
                                                 contentDataInput.add(input);
                                             }*/
-                                        } else if ("htmlarea".equals(sourceInputType)) {
+                                        } else if ("htmlarea".equals(mappingObjectHolder.getSourceInputType())) {
                                             //TODO: implement migration of htmlarea in block group
                                             LOG.warn("Not implemented! migration of htmlarea in block group");
                                             /*List<Element> htmlElements = blockGroupContent.getChild(groupInputSrc).getChildren();

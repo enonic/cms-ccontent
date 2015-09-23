@@ -71,4 +71,17 @@ public class MappingObjectHolder {
                 "\ninputMapping.dest:"+inputMapping.getAttributeValue("dest")+
                 "\ncontentInputElement.getValue():"+contentInputElement.getValue();
     }
+
+    public String getSourceInputType() {
+        return getSourceInputElement().getAttributeValue("type");
+    }
+    public String getTargetInputType() {
+        return getTargetInputElement().getAttributeValue("type");
+    }
+    public String getInputMappingSrc(){
+        return getInputMapping().getAttributeValue("src");
+    }
+    public String getInputMappingDest(){
+        return getInputMapping().getAttributeValue("dest");
+    }
 }
