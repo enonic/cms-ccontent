@@ -1,6 +1,9 @@
 package com.enonic.plugin;
 
-import com.enonic.cms.api.client.*;
+import com.enonic.cms.api.client.Client;
+import com.enonic.cms.api.client.ClientException;
+import com.enonic.cms.api.client.ClientFactory;
+import com.enonic.cms.api.client.RemoteClient;
 import com.enonic.cms.api.client.model.*;
 import com.enonic.cms.api.client.model.content.*;
 import com.enonic.cms.api.client.model.content.file.*;
@@ -75,9 +78,9 @@ public class CopyContentController extends HttpController {
     public CopyContentController() throws Exception {
         System.out.println("CopyContentController");
         setDisplayName("cContent - copy content between installations");
-        setUrlPatterns(new String[]{"/site/2/ccontent.*","/admin/site/[\\d]*/ccontent.*"});
-        setPriority(99);
-        disableSslVerification();
+        setUrlPatterns(new String[]{"/site/[\\d]*/ccontent.*", "/admin/site/[\\d]*/ccontent.*"});
+        setPriority(0);
+        //disableSslVerification();
     }
 
     private void setupAuthentication() {
@@ -145,33 +148,33 @@ public class CopyContentController extends HttpController {
     }
 
 
-    public RemoteClient getSourceserverClient(){
-        if (Strings.isNullOrEmpty((String)pluginEnvironment.getSharedObject("context_sourceserverUrl"))){
+    public RemoteClient getSourceserverClient() {
+        if (Strings.isNullOrEmpty((String) pluginEnvironment.getSharedObject("context_sourceserverUrl"))) {
             return null;
         }
-        RemoteClient remoteClient = ClientFactory.getRemoteClient((String)pluginEnvironment.getSharedObject("context_sourceserverUrl"));
+        RemoteClient remoteClient = ClientFactory.getRemoteClient((String) pluginEnvironment.getSharedObject("context_sourceserverUrl"));
         try {
             remoteClient.logout();
-            String sourceserverUsername = (String)pluginEnvironment.getSharedObject("context_sourceserverUsername");
-            String sourceserverPassword = (String)pluginEnvironment.getSharedObject("context_sourceserverPassword");
-            remoteClient.login(sourceserverUsername,sourceserverPassword);
-        }catch (Exception e){
+            String sourceserverUsername = (String) pluginEnvironment.getSharedObject("context_sourceserverUsername");
+            String sourceserverPassword = (String) pluginEnvironment.getSharedObject("context_sourceserverPassword");
+            remoteClient.login(sourceserverUsername, sourceserverPassword);
+        } catch (Exception e) {
             addWarningMessage("Exception when getting remote client. " + e);
         }
         return remoteClient;
     }
 
-    public RemoteClient getTargetserverClient(){
-        if (Strings.isNullOrEmpty((String)pluginEnvironment.getSharedObject("context_targetserverUrl"))){
+    public RemoteClient getTargetserverClient() {
+        if (Strings.isNullOrEmpty((String) pluginEnvironment.getSharedObject("context_targetserverUrl"))) {
             return null;
         }
-        RemoteClient localClient = ClientFactory.getRemoteClient((String)pluginEnvironment.getSharedObject("context_targetserverUrl"));
+        RemoteClient localClient = ClientFactory.getRemoteClient((String) pluginEnvironment.getSharedObject("context_targetserverUrl"));
         try {
             localClient.logout();
-            String targetserverUsername = (String)pluginEnvironment.getSharedObject("context_targetserverUsername");
-            String targetserverPassword = (String)pluginEnvironment.getSharedObject("context_targetserverPassword");
-            localClient.login(targetserverUsername,targetserverPassword);
-        }catch (Exception e){
+            String targetserverUsername = (String) pluginEnvironment.getSharedObject("context_targetserverUsername");
+            String targetserverPassword = (String) pluginEnvironment.getSharedObject("context_targetserverPassword");
+            localClient.login(targetserverUsername, targetserverPassword);
+        } catch (Exception e) {
             addWarningMessage("Exception when getting remote client. " + e);
         }
         return localClient;
@@ -211,13 +214,14 @@ public class CopyContentController extends HttpController {
         responseMessages.clear();
 
     }
+
     private String extractUrlFromRequest() {
         String pathTranslated = pluginEnvironment.getCurrentRequest().getPathTranslated();
-        if (pathTranslated==null && pluginEnvironment.getCurrentRequest().getAttribute("javax.servlet.forward.request_uri")!=null){
-            pathTranslated = (String)pluginEnvironment.getCurrentRequest().getAttribute("javax.servlet.forward.request_uri");
+        if (pathTranslated == null && pluginEnvironment.getCurrentRequest().getAttribute("javax.servlet.forward.request_uri") != null) {
+            pathTranslated = (String) pluginEnvironment.getCurrentRequest().getAttribute("javax.servlet.forward.request_uri");
         }
 
-        if (pathTranslated==null){
+        if (pathTranslated == null) {
             pathTranslated = pluginEnvironment.getCurrentRequest().getRequestURI();
         }
         if ("".equals(url) && pathTranslated != null) {
@@ -782,10 +786,10 @@ public class CopyContentController extends HttpController {
         addInfoMessage("Check if contenttype has an import config named 'ccontent'");
         Element importConfig = null;
         importConfig = (Element) XPath.selectSingleNode(targetContenttypeDoc, "//imports/import[@name='ccontent']");
-        if (importConfig==null){
-            addInfoMessage("No import config. Check if contenttype has an import config named 'ccontent-"+sourceContenttype.getName()+"'");
+        if (importConfig == null) {
+            addInfoMessage("No import config. Check if contenttype has an import config named 'ccontent-" + sourceContenttype.getName() + "'");
             //Fetch the import config especially for this sourceContentType, in case of n-to-1 mapping between contenttypes
-            importConfig = (Element) XPath.selectSingleNode(targetContenttypeDoc, "//imports/import[@name='ccontent-"+ sourceContenttype.getName() +"']");
+            importConfig = (Element) XPath.selectSingleNode(targetContenttypeDoc, "//imports/import[@name='ccontent-" + sourceContenttype.getName() + "']");
         }
 
         Iterator<Element> contentElementsIt = contentElements.iterator();
@@ -868,7 +872,7 @@ public class CopyContentController extends HttpController {
                         }
                     }
 
-                    if (overwriteWhenExistingMigratedContentIsModified && modifierName!=null && !modifierName.equals(getTargetserverClient().getRunAsUserName())){
+                    if (overwriteWhenExistingMigratedContentIsModified && modifierName != null && !modifierName.equals(getTargetserverClient().getRunAsUserName())) {
                         LOG.warn("Content '" + displayName + "' is modified by customer " + getTargetserverClient().getRunAsUserName() + ". Skip migrating this content to prevent overwrite!");
                         continue;
                     }
@@ -1004,33 +1008,53 @@ public class CopyContentController extends HttpController {
                     Iterator<Element> inputMappingListElIt = inputMappingListEl.iterator();
                     Iterator<Element> blockGroupElementsIt = blockGroupElements.iterator();
 
+                    //Iterate every top level block element in the import config
                     while (blockGroupElementsIt.hasNext()) {
                         try {
                             Element blockImportEl = blockGroupElementsIt.next();
                             String groupName = blockImportEl.getAttributeValue("dest");
                             String groupBase = blockImportEl.getAttributeValue("base");
 
+                            //mapping elements below current block
                             List<Element> blockGroupInputMappingElements = blockImportEl.getChildren("mapping");
 
+                            //Get content from configured block group base
                             List<Element> blockGroupContents = XPath.selectNodes(contentEl, groupBase);
                             Iterator<Element> blockGroupContentsIt = blockGroupContents.iterator();
 
+                            //Iterate content in each block group base
                             while (blockGroupContentsIt.hasNext()) {
                                 try {
                                     Element blockGroupContent = blockGroupContentsIt.next();
-                                    Iterator<Element> blockGroupInputElementsIt = blockGroupInputMappingElements.iterator();
+
+                                    //Add a new group input to our migrated content
                                     GroupInput groupInput = contentDataInput.addGroup(groupName);
+
+                                    //Iterate every mapping element in the import config
+                                    Iterator<Element> blockGroupInputElementsIt = blockGroupInputMappingElements.iterator();
                                     while (blockGroupInputElementsIt.hasNext()) {
-                                        Element groupInputMappingEl = blockGroupInputElementsIt.next();
-                                        String groupInputSrc = groupInputMappingEl.getAttribute("src").getValue();
-                                        String groupInputDest = groupInputMappingEl.getAttribute("dest").getValue();
+                                        Element inputMapping = blockGroupInputElementsIt.next();
+                                        String groupInputSrc = inputMapping.getAttribute("src").getValue();
+                                        String groupInputDest = inputMapping.getAttribute("dest").getValue();
                                         Element sourceInputEl = ((Element) XPath.selectSingleNode(sourceContenttypeDoc, "//input[xpath='" + groupInputSrc + "']"));
                                         Element targetInputEl = ((Element) XPath.selectSingleNode(targetContenttypeDoc, "//input[@name='" + groupInputDest + "']"));
                                         String sourceInputType = sourceInputEl.getAttributeValue("type");
                                         String targetInputType = targetInputEl.getAttributeValue("type");
                                         addInfoMessage("Add " + sourceInputType + " " + groupInputSrc + " to " + targetInputType + " " + groupInputDest);
 
-                                        if ("text".equals(sourceInputType)) {
+                                        MappingObjectHolder mappingObjectHolder = new MappingObjectHolder();
+                                        mappingObjectHolder.setSourceContenttype(sourceContenttype);
+                                        mappingObjectHolder.setTargetContenttype(targetContenttype);
+                                        mappingObjectHolder.setTargetInputElement(targetInputEl);
+                                        mappingObjectHolder.setSourceInputElement(sourceInputEl);
+                                        mappingObjectHolder.setInputMapping(inputMapping);
+                                        mappingObjectHolder.setContentInputElement(blockGroupContent.getChild(groupInputSrc));
+
+                                        if (MappingRules.hasSpecialHandling(mappingObjectHolder)) {
+                                            addInfoMessage("Handling special input " + inputMapping.getAttributeValue("dest") + " for contenttype " + targetContenttype.getName());
+                                            addInfoMessage(mappingObjectHolder.toString());
+                                            groupInput.add(MappingRules.getInput(mappingObjectHolder));
+                                        } else if ("text".equals(sourceInputType)) {
                                             groupInput.add(new TextInput(groupInputDest, blockGroupContent.getChild(groupInputSrc).getValue()));
                                         } else if ("image".equals(sourceInputType)) {
                                             Attribute imageKeyAttr = blockGroupContent.getChild(groupInputSrc).getAttribute("key");
@@ -1072,7 +1096,7 @@ public class CopyContentController extends HttpController {
                                                 TextAreaInput input = new TextAreaInput(groupInputDest, sourceInputEl.getValue());
                                                 contentDataInput.add(input);
                                             }*/
-                                        }else if ("htmlarea".equals(sourceInputType)){
+                                        } else if ("htmlarea".equals(sourceInputType)) {
                                             //TODO: implement migration of htmlarea in block group
                                             LOG.warn("Not implemented! migration of htmlarea in block group");
                                             /*List<Element> htmlElements = blockGroupContent.getChild(groupInputSrc).getChildren();
@@ -1099,6 +1123,7 @@ public class CopyContentController extends HttpController {
                         }
                     }
 
+                    //Iterate every top level mapping element in the import config
                     while (inputMappingListElIt.hasNext()) {
                         Element inputMapping = inputMappingListElIt.next();
                         String sourceInput = inputMapping.getAttributeValue("src");
@@ -1129,27 +1154,10 @@ public class CopyContentController extends HttpController {
                             mappingObjectHolder.setInputMapping(inputMapping);
                             mappingObjectHolder.setContentInputElement(contentInputEl);
 
-                            //addInfoMessage("Source contenttype = " + sourceContenttype.getName());
-                            /*
-                            if ("publikasjon".equals(sourceContenttype.getName().toLowerCase())
-                                    && "text".equals(sourceInputType)
-                                    && "heading".equals(sourceInput)) {
-                                if (!isMigratedContentModifiedByCustomer) {
-
-                                    Element norheadingInputEl = (Element) XPath.selectSingleNode(contentEl, "contentdata/heading_nor");
-                                    Input input;
-                                    if (norheadingInputEl == null || Strings.isNullOrEmpty(norheadingInputEl.getValue())) {
-                                        input = new TextInput(destInput, contentInputEl.getValue());
-                                    } else {
-                                        input = new TextInput(destInput, norheadingInputEl.getValue());
-                                    }
-                                    contentDataInput.add(input);
-                                }
-                            }*/
                             addInfoMessage("if/else - checking input type " + mappingObjectHolder.getTargetInputElement().getName());
-                            addInfoMessage(mappingObjectHolder.toString());
-                            if (MappingRules.hasSpecialHandling(mappingObjectHolder)){
+                            if (MappingRules.hasSpecialHandling(mappingObjectHolder)) {
                                 addInfoMessage("Handling special input " + inputMapping.getAttributeValue("dest") + " for contenttype " + targetContenttype.getName());
+                                addInfoMessage(mappingObjectHolder.toString());
                                 contentDataInput.add(MappingRules.getInput(mappingObjectHolder));
                             } else if ("text".equals(sourceInputType)) {
                                 Input input = new TextInput(destInput, contentInputEl.getValue());
@@ -1190,7 +1198,7 @@ public class CopyContentController extends HttpController {
                                 try {
                                     List<Attribute> fileKeys = XPath.selectNodes(contentInputEl, "file/@key");
                                     Iterator<Attribute> fileKeysIt = fileKeys.iterator();
-                                    while (fileKeysIt.hasNext()){
+                                    while (fileKeysIt.hasNext()) {
                                         Attribute fileKey = fileKeysIt.next();
                                         if (fileKey == null) {
                                             LOG.warn("File input key was null, ignoring");
@@ -1202,7 +1210,7 @@ public class CopyContentController extends HttpController {
                                             input.addFile(newKey);
                                         }
                                     }
-                                    if (input.getFiles()!=null && !input.getFiles().isEmpty()){
+                                    if (input.getFiles() != null && !input.getFiles().isEmpty()) {
                                         contentDataInput.add(input);
                                     }
                                 } catch (Exception e) {
@@ -1218,7 +1226,7 @@ public class CopyContentController extends HttpController {
                                         GetBinaryParams getBinaryParams = new GetBinaryParams();
                                         getBinaryParams.binaryKey = binaryKey;
                                         Document binaryDoc = getTargetserverClient().getBinary(getBinaryParams);
-                                        String fileName = ((Element)XPath.selectSingleNode(binaryDoc, "//filename")).getValue();
+                                        String fileName = ((Element) XPath.selectSingleNode(binaryDoc, "//filename")).getValue();
                                         String base64EncodedBinaryString = binaryDoc.getRootElement().getChild("data").getText().trim();
 
                                         LOG.info("destInput {}", destInput);
@@ -1241,11 +1249,11 @@ public class CopyContentController extends HttpController {
                                 }
                             } else if ("textarea".equals(sourceInputType)) {
                                 LOG.info("Migrate textarea {}", sourceInput);
-                                if (targetInputType!=null && targetInputType.equalsIgnoreCase("htmlarea")){
+                                if (targetInputType != null && targetInputType.equalsIgnoreCase("htmlarea")) {
                                     LOG.info("to htmlarea ");
                                     HtmlAreaInput input = new HtmlAreaInput(destInput, contentInputEl.getValue());
                                     contentDataInput.add(input);
-                                }else{
+                                } else {
                                     TextAreaInput input = new TextAreaInput(destInput, contentInputEl.getValue());
                                     contentDataInput.add(input);
                                 }
@@ -1421,8 +1429,8 @@ public class CopyContentController extends HttpController {
                             }
                             String guessedOldKey = htmlAttributeValue.substring(beginIndex, endIndex);
                             //TODO: Quickfix
-                            if (guessedOldKey.contains("/")){
-                                guessedOldKey = guessedOldKey.replaceAll("/","");
+                            if (guessedOldKey.contains("/")) {
+                                guessedOldKey = guessedOldKey.replaceAll("/", "");
                             }
 
                             addInfoMessage("Guessed old key " + guessedOldKey);
@@ -1503,7 +1511,7 @@ public class CopyContentController extends HttpController {
                 return existingContent;
             }
 
-        }catch (Exception e){
+        } catch (Exception e) {
             addErrorMessage("Exception while getting existing migratedContentOrCategory");
         }
         return null;
@@ -1522,12 +1530,12 @@ public class CopyContentController extends HttpController {
                     return newKey;
                 }
             } else {
-                    Integer replacementKey = Integer.parseInt(pluginEnvironment.getSharedObject("context_missing" + type + "key").toString());
-                    if (replacementKey != null) {
-                        return replacementKey;
-                    }
+                Integer replacementKey = Integer.parseInt(pluginEnvironment.getSharedObject("context_missing" + type + "key").toString());
+                if (replacementKey != null) {
+                    return replacementKey;
+                }
             }
-        }catch (Exception e){
+        } catch (Exception e) {
             addErrorMessage("Exception in getExistingMigratedContentOrCategoryKey");
         }
         return null;
@@ -1626,16 +1634,17 @@ public class CopyContentController extends HttpController {
         return methodName;
     }
 
-    private static void disableSslVerification() throws Exception{
-        try
-        {
+    private static void disableSslVerification() throws Exception {
+        try {
             // Create a trust manager that does not validate certificate chains
-            TrustManager[] trustAllCerts = new TrustManager[] {new X509TrustManager() {
+            TrustManager[] trustAllCerts = new TrustManager[]{new X509TrustManager() {
                 public X509Certificate[] getAcceptedIssuers() {
                     return null;
                 }
+
                 public void checkClientTrusted(X509Certificate[] certs, String authType) {
                 }
+
                 public void checkServerTrusted(X509Certificate[] certs, String authType) {
                 }
             }

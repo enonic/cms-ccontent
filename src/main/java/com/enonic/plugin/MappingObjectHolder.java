@@ -2,8 +2,12 @@ package com.enonic.plugin;
 
 
 import org.jdom.Element;
+import org.jdom.output.Format;
+import org.jdom.output.XMLOutputter;
 
 public class MappingObjectHolder {
+    XMLOutputter xmlOutputter = new XMLOutputter(Format.getPrettyFormat());
+
 
     private Element inputMapping;
     private Contenttype sourceContenttype;
@@ -60,7 +64,7 @@ public class MappingObjectHolder {
         return contentInputElement;
     }
 
-    public String toString(){
+    public String toString() {
         return "\nsourceContentType:"+sourceContenttype.getName()+
                 "\ntargetContentType:"+targetContenttype.getName()+
                 "\ninputMapping.src:"+inputMapping.getAttributeValue("src")+

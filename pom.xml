@@ -14,11 +14,11 @@
         <cms.home>${env.CMS_HOME}</cms.home>
         <cms.version>4.7.6</cms.version>
         <spring.version>3.1.3.RELEASE</spring.version>
+        <slf4j.version>1.6.6</slf4j.version>
+        <servlet.version>2.5</servlet.version>
 
         <!-- source encoding -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <scope.provided>provided</scope.provided>
-        <scope.compile>compile</scope.compile>
 
     </properties>
     <profiles>
@@ -55,29 +55,26 @@
             <groupId>com.enonic.cms</groupId>
             <artifactId>cms-api</artifactId>
             <version>${cms.version}</version>
-            <scope>${scope.provided}</scope>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>14.0.1</version>
+            <version>13.0</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
             <version>1.8</version>
+            <!--<version>1.3</version>
+            <scope>provided</scope>-->
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
             <version>${spring.version}</version>
-            <scope>${scope.provided}</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-orm</artifactId>
-            <version>${spring.version}</version>
-            <scope>${scope.provided}</scope>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.thymeleaf</groupId>
@@ -95,7 +92,7 @@
             <groupId>commons-lang</groupId>
             <artifactId>commons-lang</artifactId>
             <version>2.6</version>
-            <scope>${scope.provided}</scope>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -107,8 +104,22 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.6.6</version>
-            <scope>${scope.provided}</scope>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>log4j-over-slf4j</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-jdk14</artifactId>
+            <version>${slf4j.version}</version>
         </dependency>
 
     </dependencies>
@@ -126,8 +137,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.0</version>
                 <configuration>
-                    <source>1.7</source>
-                    <target>1.7</target>
+                    <source>1.6</source>
+                    <target>1.6</target>
                 </configuration>
             </plugin>
         </plugins>

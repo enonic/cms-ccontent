@@ -34,7 +34,7 @@ public class HandyMigrationUtils {
     final static XMLOutputter xmlout = new XMLOutputter(Format.getPrettyFormat());
     //final static Logger LOG = LoggerFactory.getLogger(HandyMigrationUtils.class);
 
-    final static int[] CATEGORYKEYS = new int[]{3421};
+    final static int[] CATEGORYKEYS = new int[]{3398};
 
     static {
         try {
