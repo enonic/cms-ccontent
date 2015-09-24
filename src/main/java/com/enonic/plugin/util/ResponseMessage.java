@@ -10,7 +10,7 @@ import java.util.List;
 public class ResponseMessage {
 
     static List<ResponseMessage> responseMessages = new ArrayList<ResponseMessage>();
-    static Logger LOG = LoggerFactory.getLogger(Message.class);
+    static Logger LOG = LoggerFactory.getLogger(ResponseMessage.class);
 
     String messageType;
     String message;
