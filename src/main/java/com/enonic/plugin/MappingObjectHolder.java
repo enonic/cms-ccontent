@@ -52,9 +52,7 @@ public class MappingObjectHolder {
         return targetInputElement;
     }
 
-    public Element getSourceInputElement() {
-        return sourceInputElement;
-    }
+    public Element getSourceInputElement() {return sourceInputElement;}
 
     public void setContentInputElement(Element contentInputElement) {
         this.contentInputElement = contentInputElement;
