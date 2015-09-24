@@ -3,20 +3,26 @@ package com.enonic.plugin;
 
 import com.enonic.cms.api.client.model.GetContentByCategoryParams;
 import com.enonic.cms.api.plugin.PluginEnvironment;
+import com.enonic.cms.api.plugin.ext.http.HttpController;
 import com.enonic.plugin.util.ResponseMessage;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.xpath.XPath;
-import org.springframework.beans.factory.annotation.Autowired;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.util.List;
+
 
 public class ExistingContentHandler {
 
-    @Autowired
+    ClientProvider clientProvider;
     PluginEnvironment pluginEnvironment;
-    ClientProvider clientProvider = new ClientProvider();
 
+    public ExistingContentHandler(ClientProvider clientProvider){
+        this.clientProvider = clientProvider;
+        this.pluginEnvironment = clientProvider.getPluginEnvironment();
+    }
 
     public Element getExistingMigratedContentOrCategory(Integer sourceKey, String type) throws Exception {
         try {
@@ -92,4 +98,5 @@ public class ExistingContentHandler {
             return existingContent;
         }
     }
+
 }

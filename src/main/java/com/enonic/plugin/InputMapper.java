@@ -14,6 +14,8 @@ import org.jdom.xpath.XPath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Iterator;
@@ -22,13 +24,19 @@ import java.util.Locale;
 
 
 public class InputMapper {
-    ExistingContentHandler existingContentHandler = new ExistingContentHandler();
-    ClientProvider clientProvider = new ClientProvider();
+
     Logger LOG = LoggerFactory.getLogger(InputMapper.class);
     XMLOutputter xmlOutputter = new XMLOutputter(Format.getPrettyFormat());
 
+    ExistingContentHandler existingContentHandler;
+    ClientProvider clientProvider;
+
+    public InputMapper(ClientProvider clientProvider, ExistingContentHandler existingContentHandler){
+        this.existingContentHandler = existingContentHandler;
+        this.clientProvider = clientProvider;
+    }
+
     public Input getInput(MappingObjectHolder mappingObjectHolder) {
-        ResponseMessage.addInfoMessage("if/else - checking input type " + mappingObjectHolder.getTargetInputElement().getName());
         if (MappingRules.hasSpecialHandling(mappingObjectHolder)) {
             ResponseMessage.addInfoMessage("Handling special input " + mappingObjectHolder.getInputMapping().getAttributeValue("dest") + " for contenttype " + mappingObjectHolder.getTargetContenttype().getName());
             ResponseMessage.addInfoMessage(mappingObjectHolder.toString());
@@ -69,7 +77,7 @@ public class InputMapper {
         ResponseMessage.addInfoMessage("Get image content " + mappingObjectHolder.getInputMappingSrc());
         Attribute imageKeyAttr = null;
         try {
-            imageKeyAttr = (Attribute) XPath.selectSingleNode(mappingObjectHolder.getContentInputElement(), "contentdata/" + mappingObjectHolder.getInputMappingSrc() + "/@key");
+            imageKeyAttr = (Attribute) XPath.selectSingleNode(mappingObjectHolder.getContentInputElement(), mappingObjectHolder.getInputMappingSrcXpath() + mappingObjectHolder.getInputMappingSrc() + "/@key");
         } catch (Exception e) {
             ResponseMessage.addErrorMessage("Error when getting image key from content");
         }
@@ -123,7 +131,7 @@ public class InputMapper {
         if ((multiple == null || "true".equals(multiple)) && "relatedcontent".equals(mappingObjectHolder.getTargetInputType())) {
             List<Element> relatedContentKeys = null;
             try {
-                relatedContentKeys = XPath.selectNodes(mappingObjectHolder.getContentInputElement(), "contentdata/" + mappingObjectHolder.getInputMappingSrc() + "/content");
+                relatedContentKeys = XPath.selectNodes(mappingObjectHolder.getContentInputElement(), "content");
             } catch (JDOMException e) {
                 ResponseMessage.addWarningMessage("Could not find relatedContents, " + mappingObjectHolder.toString());
             }
@@ -139,7 +147,7 @@ public class InputMapper {
                 if (oldRelatedContentKey != null) {
                     Element existingMigratedContent = null;
                     try {
-                        existingContentHandler.getExistingMigratedContentOrCategory(Integer.parseInt(oldRelatedContentKey.getValue()), "relatedcontent");
+                        existingMigratedContent = existingContentHandler.getExistingMigratedContentOrCategory(Integer.parseInt(oldRelatedContentKey.getValue()), "relatedcontent");
                     } catch (Exception e) {
                         LOG.warn("Error while loogin for existing migrated content");
                     }
@@ -163,14 +171,13 @@ public class InputMapper {
         } else {
             Attribute relatedContentKeyAttr = null;
             try {
-                //TODO: Adapt this for group content by adding a mappingObjectHolder.getGroup which return 'contentdata/' if not in a group
-                relatedContentKeyAttr = (Attribute) XPath.selectSingleNode(mappingObjectHolder.getContentInputElement(), "contentdata/" + mappingObjectHolder.getInputMappingSrc() + "/@key");
+                relatedContentKeyAttr = (Attribute) XPath.selectSingleNode(mappingObjectHolder.getContentInputElement(), mappingObjectHolder.getInputMappingSrcXpath() + mappingObjectHolder.getInputMappingSrc() + "/@key");
             } catch (Exception e) {
                 ResponseMessage.addWarningMessage("Error while getting relatedcontent");
             }
             if (relatedContentKeyAttr == null) {
                 try {
-                    relatedContentKeyAttr = (Attribute) XPath.selectSingleNode(mappingObjectHolder.getContentInputElement(), "contentdata/" + mappingObjectHolder.getInputMappingSrc() + "/content/@key");
+                    relatedContentKeyAttr = (Attribute) XPath.selectSingleNode(mappingObjectHolder.getContentInputElement(), mappingObjectHolder.getInputMappingSrcXpath() + mappingObjectHolder.getInputMappingSrc() + "/content/@key");
                 } catch (Exception e) {
                     ResponseMessage.addWarningMessage("Error while getting relatedcontent");
                 }
@@ -232,12 +239,13 @@ public class InputMapper {
             LOG.info("to textarea ");
             return getTextAreaInput(mappingObjectHolder);
         }
+        String html = xmlOutputter.outputString(mappingObjectHolder.getContentInputElement());
 
-        return new HtmlAreaInput(mappingObjectHolder.getInputMappingDest(), xmlOutputter.outputString(mappingObjectHolder.getContentInputElement()));
+        return new HtmlAreaInput(mappingObjectHolder.getInputMappingDest(), html);
     }
 
     private Input getTextAreaInput(MappingObjectHolder mappingObjectHolder) {
-        ResponseMessage.addInfoMessage(("Migrate textarea " + mappingObjectHolder.getSourceInputElement().getName()));
+        ResponseMessage.addInfoMessage(("Migrate textarea " + mappingObjectHolder.getInputMappingSrc()));
 
         if (mappingObjectHolder.getTargetInputType() == null) {
             return null;
@@ -356,17 +364,32 @@ public class InputMapper {
     }
 
     private Input getUrlInput(MappingObjectHolder mappingObjectHolder) {
-        UrlInput input = new UrlInput(mappingObjectHolder.getInputMappingDest(), mappingObjectHolder.getContentInputElement().getValue());
+        String url = mappingObjectHolder.getContentInputElement().getValue();
+
+        try {
+            URL checkUrl = new URL(url);
+        }catch (MalformedURLException mue){
+            url = null;
+        }
+
+        UrlInput input = new UrlInput(mappingObjectHolder.getInputMappingDest(), url);
         return input;
     }
 
     private Input getTextInput(MappingObjectHolder mappingObjectHolder) {
-        if (mappingObjectHolder.getTargetInputType() != null) {
+        if (mappingObjectHolder.getTargetInputType() == null) {
             return null;
         }
+
         if ("textarea".equalsIgnoreCase(mappingObjectHolder.getTargetInputType())) {
             ResponseMessage.addInfoMessage("to textarea ");
             return getTextAreaInput(mappingObjectHolder);
+        }
+
+        //Try to convert from text to url
+        if ("url".equalsIgnoreCase(mappingObjectHolder.getTargetInputType())) {
+            ResponseMessage.addInfoMessage("to url ");
+            return getUrlInput(mappingObjectHolder);
         }
 
         //Handle rare case of conversion from relatedcontent to textarea. Requires existing relatedcontent to be set as content input element

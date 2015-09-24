@@ -6,12 +6,14 @@ import com.enonic.cms.api.client.RemoteClient;
 import com.enonic.cms.api.plugin.PluginEnvironment;
 import com.enonic.plugin.util.ResponseMessage;
 import com.google.common.base.Strings;
-import org.springframework.beans.factory.annotation.Autowired;
 
 public class ClientProvider {
 
-    @Autowired
     PluginEnvironment pluginEnvironment;
+
+    public ClientProvider(PluginEnvironment pluginEnvironment) {
+        this.pluginEnvironment = pluginEnvironment;
+    }
 
     public RemoteClient getSourceserverClient() {
         if (Strings.isNullOrEmpty((String) pluginEnvironment.getSharedObject("context_sourceserverUrl"))) {
@@ -43,5 +45,9 @@ public class ClientProvider {
             ResponseMessage.addWarningMessage("Exception when getting remote client. " + e);
         }
         return localClient;
+    }
+
+    public PluginEnvironment getPluginEnvironment() {
+        return pluginEnvironment;
     }
 }
