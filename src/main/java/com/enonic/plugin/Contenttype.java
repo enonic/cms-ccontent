@@ -1,10 +1,5 @@
 package com.enonic.plugin;
 
-import com.google.common.hash.Hashing;
-
-/**
- * Created by rfo on 04/08/14.
- */
 public class Contenttype implements Comparable<Contenttype>{
     private Integer key;
     private String name;

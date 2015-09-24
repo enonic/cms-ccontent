@@ -658,7 +658,15 @@ public class CopyContentController extends HttpController {
             try {
                 targetCategoryKey = getTargetserverClient().createCategory(createCategoryParams);
                 ResponseMessage.addInfoMessage("Created category " + category.getTitle() + " with id " + targetCategoryKey);
-                createMigratedContent(category.getTitle(), "category", category.getKey(), targetCategoryKey, sourceContenttype, targetContenttype);
+
+                MigratedContent migratedContent = new MigratedContent();
+                migratedContent.setTitle(category.getTitle());
+                migratedContent.setType("category");
+                migratedContent.setOldContentKey(category.getKey());
+                migratedContent.setOldContenttype(sourceContenttype);
+                migratedContent.setNewContenttype(targetContenttype);
+                migratedContent.setNewContentKey(targetCategoryKey);
+                createMigratedContent(migratedContent);
                 ResponseMessage.addInfoMessage("Created migrated-content contenttype for category");
 
             } catch (Exception e) {
@@ -773,6 +781,8 @@ public class CopyContentController extends HttpController {
             }
             String displayName = null;
 
+            Element sourceContentModifierEl = null;
+            Element sourceContentOwnerEl = null;
 
             String targetModifierQN = null;
             String targetModifierName = null;
@@ -821,7 +831,9 @@ public class CopyContentController extends HttpController {
                 boolean isMigratedContentModifiedByCustomer = false;
 
                 try{
-                    Element sourceContentModifierEl = (Element) XPath.selectSingleNode(contentEl, "modifier");
+                    sourceContentModifierEl = (Element) XPath.selectSingleNode(contentEl, "modifier");
+                    sourceContentModifierEl.setAttribute(new Attribute("timestamp", contentEl.getAttributeValue("timestamp")));
+                    sourceContentModifierEl.setAttribute(new Attribute("publishfrom", contentEl.getAttributeValue("publishfrom")));
                     srcModifierQN = sourceContentModifierEl.getAttributeValue("qualified-name");
                     srcModifierKey = sourceContentModifierEl.getAttributeValue("key");
                     srcModifierName = sourceContentModifierEl.getChildText("name");
@@ -829,7 +841,8 @@ public class CopyContentController extends HttpController {
                     ResponseMessage.addWarningMessage("Error while getting modifier for original content");
                 }
                 try{
-                    Element sourceContentOwnerEl = (Element) XPath.selectSingleNode(contentEl, "owner");
+                    sourceContentOwnerEl = (Element) XPath.selectSingleNode(contentEl, "owner");
+                    sourceContentOwnerEl.setAttribute(new Attribute("created", contentEl.getAttributeValue("created")));
                     srcOwnerQN = sourceContentOwnerEl.getAttributeValue("qualified-name");
                     srcOwnerKey = sourceContentOwnerEl.getAttributeValue("key");
                     srcOwnerName = sourceContentOwnerEl.getChildText("name");
@@ -942,7 +955,16 @@ public class CopyContentController extends HttpController {
                         }
 
                         targetContentKey = targetserverClient.createImageContent(createImageContentParams);
-                        createMigratedContent(displayName, "image", sourceContentKey, targetContentKey, sourceContenttype, targetContenttype);
+                        MigratedContent migratedContent = new MigratedContent();
+                        migratedContent.setTitle(displayName);
+                        migratedContent.setType("image");
+                        migratedContent.setOldContentKey(sourceContentKey);
+                        migratedContent.setNewContentKey(targetContentKey);
+                        migratedContent.setOldContenttype(sourceContenttype);
+                        migratedContent.setNewContenttype(targetContenttype);
+                        migratedContent.setOldModifierXml(sourceContentModifierEl);
+                        migratedContent.setOldOwnerXml(sourceContentOwnerEl);
+                        createMigratedContent(migratedContent);
                     } else {
                         //TODO: Implement updating of images?
                         ResponseMessage.addInfoMessage("Image already exists, skipping..");
@@ -1002,7 +1024,17 @@ public class CopyContentController extends HttpController {
                         }
 
                         targetContentKey = targetserverClient.createFileContent(createFileContentParams);
-                        createMigratedContent(displayName, "file", sourceContentKey, targetContentKey, sourceContenttype, targetContenttype);
+                        MigratedContent migratedContent = new MigratedContent();
+                        migratedContent.setTitle(displayName);
+                        migratedContent.setType("file");
+                        migratedContent.setOldContentKey(sourceContentKey);
+                        migratedContent.setNewContentKey(targetContentKey);
+                        migratedContent.setOldContenttype(sourceContenttype);
+                        migratedContent.setNewContenttype(targetContenttype);
+                        migratedContent.setOldModifierXml(sourceContentModifierEl);
+                        migratedContent.setOldOwnerXml(sourceContentOwnerEl);
+
+                        createMigratedContent(migratedContent);
                     } else {
                         //TODO: Implement updating of files?
                         ResponseMessage.addInfoMessage("File already exists, skipping..");
@@ -1163,7 +1195,18 @@ public class CopyContentController extends HttpController {
 
                         Integer targetContentKey = targetserverClient.createContent(createContentParams);
                         targetserverClient.removeImpersonation();
-                        createMigratedContent(displayName, "content", sourceContentKey, targetContentKey, sourceContenttype, targetContenttype);
+
+                        MigratedContent migratedContent = new MigratedContent();
+                        migratedContent.setTitle(displayName);
+                        migratedContent.setType("content");
+                        migratedContent.setOldContentKey(sourceContentKey);
+                        migratedContent.setNewContentKey(targetContentKey);
+                        migratedContent.setOldContenttype(sourceContenttype);
+                        migratedContent.setNewContenttype(targetContenttype);
+                        migratedContent.setOldModifierXml(sourceContentModifierEl);
+                        migratedContent.setOldOwnerXml(sourceContentOwnerEl);
+
+                        createMigratedContent(migratedContent);
                     } else {
                         LOG.info("Content exists, update it");
 
@@ -1237,7 +1280,9 @@ public class CopyContentController extends HttpController {
             userDoc = targetserverClient.getUser(getUserParams);
             //xmlOutputter.output(userDoc, System.out);
         }catch (Exception e){
-            ResponseMessage.addErrorMessage("Error when getting user to impersonate");
+            ResponseMessage.addErrorMessage("User does not exist, impersonation is not allowed for \" + qName");
+            LOG.error("User does not exist, impersonation is not allowed for \" + qName",e);
+            return false;
         }
         if (userDoc!=null && userDoc.hasRootElement()){
             ResponseMessage.addInfoMessage("User exist, impersonation is allowed for " + qName);
@@ -1324,16 +1369,18 @@ public class CopyContentController extends HttpController {
     }
 
 
-    private void createMigratedContent(String displayName, String type, Integer sourceContentKey, Integer targetContentKey, Contenttype sourceContenttype, Contenttype targetContenttype) {
+    private void createMigratedContent(MigratedContent migratedContent) {
         CreateContentParams createMigratedContentParams = new CreateContentParams();
         createMigratedContentParams.categoryKey = Integer.parseInt((String) pluginEnvironment.getSharedObject("context_migratedcontentcategory"));
         ContentDataInput migratedContentData = new ContentDataInput("migrated-content");
-        migratedContentData.add(new TextInput("oldkey", String.valueOf(sourceContentKey)));
-        migratedContentData.add(new TextInput("newkey", String.valueOf(targetContentKey)));
-        migratedContentData.add(new TextInput("oldcontenttype", sourceContenttype != null ? sourceContenttype.getName() : ""));
-        migratedContentData.add(new TextInput("newcontenttype", targetContenttype != null ? targetContenttype.getName() : ""));
-        migratedContentData.add(new TextInput("title", displayName));
-        migratedContentData.add(new TextInput("type", type));
+        migratedContentData.add(new TextInput("oldkey", String.valueOf(migratedContent.getOldContentKey())));
+        migratedContentData.add(new TextInput("newkey", String.valueOf(migratedContent.getNewContentKey())));
+        migratedContentData.add(new TextInput("oldcontenttype", migratedContent.getOldContenttype() != null ? migratedContent.getOldContenttype().getName() : ""));
+        migratedContentData.add(new TextInput("newcontenttype", migratedContent.getNewContenttype() != null ? migratedContent.getNewContenttype().getName() : ""));
+        migratedContentData.add(new TextInput("title", migratedContent.getTitle()));
+        migratedContentData.add(new TextInput("type", migratedContent.getType()));
+        migratedContentData.add(new XmlInput("oldownerxml",migratedContent.getOldOwnerXml()));
+        migratedContentData.add(new XmlInput("oldmodifierxml",migratedContent.getOldModifierXml()));
         createMigratedContentParams.contentData = migratedContentData;
         createMigratedContentParams.status = ContentStatus.STATUS_APPROVED;
         createMigratedContentParams.publishFrom = new Date();
