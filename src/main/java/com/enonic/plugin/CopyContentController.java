@@ -30,7 +30,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 import org.thymeleaf.context.WebContext;
-import org.w3c.dom.Attr;
 
 import javax.net.ssl.*;
 import javax.servlet.http.HttpServletRequest;
@@ -145,10 +144,7 @@ public class CopyContentController extends HttpController {
         } catch (Exception e) {
             ResponseMessage.addErrorMessage("Authentication for local client failed");
         }
-
-
     }
-
 
     @Override
     public void handleRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
@@ -675,7 +671,7 @@ public class CopyContentController extends HttpController {
 
         if (targetContenttype != null && copyContent) {
             ResponseMessage.addInfoMessage("Will copy content for category " + category.getTitle());
-            copyContent(category.getKey(), targetCategoryKey, sourceserverClient);
+            copyContent(category.getKey(), targetCategoryKey);
         } else {
             ResponseMessage.addInfoMessage("Will not copy content for category " + category.getTitle());
         }
@@ -694,7 +690,10 @@ public class CopyContentController extends HttpController {
 
     }
 
-    private void copyContent(Integer sourceCategoryKey, Integer targetCategoryKey, RemoteClient sourceserverClient) throws Exception {
+    private void copyContent(Integer sourceCategoryKey, Integer targetCategoryKey) throws Exception {
+
+        RemoteClient targetserverClient = getTargetserverClient();
+        RemoteClient sourceserverClient = getSourceserverClient();
 
         GetContentByCategoryParams getContentByCategoryParams = new GetContentByCategoryParams();
         getContentByCategoryParams.includeOfflineContent = true;
@@ -737,7 +736,7 @@ public class CopyContentController extends HttpController {
         ResponseMessage.addInfoMessage("Get source and target contenttype doc for source and target keys " + sourceContenttype.getKey() + " " + targetContenttype.getKey());
 
         Document sourceContenttypeDoc = getContenttypeDoc(sourceContenttype.getKey(), null, sourceserverClient);
-        Document targetContenttypeDoc = getContenttypeDoc(targetContenttype.getKey(), null, getTargetserverClient());
+        Document targetContenttypeDoc = getContenttypeDoc(targetContenttype.getKey(), null, targetserverClient);
 
         if (sourceContenttypeDoc == null) {
             ResponseMessage.addErrorMessage("Source contenttype doc is null, aborting");
@@ -772,9 +771,23 @@ public class CopyContentController extends HttpController {
             if (abortCopy) {
                 break;
             }
-            String modifierName = null;
-            String modifierKey = null;
             String displayName = null;
+
+
+            String targetModifierQN = null;
+            String targetModifierName = null;
+            String targetModifierKey = null;
+
+            String srcModifierQN = null;
+            String srcModifierName = null;
+            String srcModifierKey = null;
+
+            String srcOwnerKey = null;
+            String srcOwnerQN = null;
+            String srcOwnerName = null;
+
+
+
             try {
                 int count = 0;
                 Element contentEl = contentElementsIt.next();
@@ -807,7 +820,23 @@ public class CopyContentController extends HttpController {
                 boolean isAlreadyMigrated = false;
                 boolean isMigratedContentModifiedByCustomer = false;
 
-                String lastModifiedByKeyNorwegianVersion = null;
+                try{
+                    Element sourceContentModifierEl = (Element) XPath.selectSingleNode(contentEl, "modifier");
+                    srcModifierQN = sourceContentModifierEl.getAttributeValue("qualified-name");
+                    srcModifierKey = sourceContentModifierEl.getAttributeValue("key");
+                    srcModifierName = sourceContentModifierEl.getChildText("name");
+                }catch (Exception e){
+                    ResponseMessage.addWarningMessage("Error while getting modifier for original content");
+                }
+                try{
+                    Element sourceContentOwnerEl = (Element) XPath.selectSingleNode(contentEl, "owner");
+                    srcOwnerQN = sourceContentOwnerEl.getAttributeValue("qualified-name");
+                    srcOwnerKey = sourceContentOwnerEl.getAttributeValue("key");
+                    srcOwnerName = sourceContentOwnerEl.getChildText("name");
+                }catch (Exception e){
+                    ResponseMessage.addWarningMessage("Error while getting owner for original content");
+                }
+
 
                 if (!isImage && !isFile) {
                     List<Element> existingMigratedContents = getExistingContentHandler().getExistingMigratedContents(sourceContentKey, "content");
@@ -833,23 +862,25 @@ public class CopyContentController extends HttpController {
                                 GetContentParams getContentParams = new GetContentParams();
                                 getContentParams.contentKeys = new int[]{newKey};
                                 getContentParams.includeData = true;
-                                migratedContentDoc = getTargetserverClient().getContent(getContentParams);
-                                Element migratedContentModifierNameEl = (Element) XPath.selectSingleNode(migratedContentDoc, "contents/content/modifier/name");
-                                if (migratedContentModifierNameEl != null) {
-                                    modifierName = migratedContentModifierNameEl.getValue();
-                                }
-                                Attribute modifierKeyAttr = (Attribute) XPath.selectSingleNode(migratedContentDoc, "contents/content/modifier/@key");
-                                if (modifierKeyAttr != null) {
-                                    modifierKey = modifierKeyAttr.getValue();
+                                migratedContentDoc = targetserverClient.getContent(getContentParams);
+
+
+                                try{
+                                    Element targetContentModifierEl = (Element) XPath.selectSingleNode(migratedContentDoc, "modifier");
+                                    targetModifierQN = targetContentModifierEl.getAttributeValue("qualified-name");
+                                    targetModifierKey = targetContentModifierEl.getAttributeValue("key");
+                                    targetModifierName = targetContentModifierEl.getChildText("name");
+                                }catch (Exception e){
+                                    ResponseMessage.addWarningMessage("Error while getting modifier for target content");
                                 }
                             }
                         }
                     }
-
-                    if (overwriteWhenExistingMigratedContentIsModified && modifierName != null && !modifierName.equals(getTargetserverClient().getRunAsUserName())) {
-                        LOG.warn("Content '" + displayName + "' is modified by customer " + getTargetserverClient().getRunAsUserName() + ". Skip migrating this content to prevent overwrite!");
+                    //TODO: Use targetModifierQN and sourceModifierQN to test for changes on target server.
+                    /*if (overwriteWhenExistingMigratedContentIsModified && srcModifierQN != null && !srcModifierQN.equals(targetserverClient.getRunAsUserName())) {
+                        LOG.warn("Content '" + displayName + "' is modified by customer " + targetserverClient.getRunAsUserName() + ". Skip migrating this content to prevent overwrite!");
                         continue;
-                    }
+                    }*/
                 }
 
                 if (isImage) {
@@ -900,10 +931,20 @@ public class CopyContentController extends HttpController {
                         if (status != null) {
                             createImageContentParams.status = status;
                         }
+                        try {
+                            if (isImpersonationAllowed(srcOwnerQN, targetserverClient)){
+                                targetserverClient.impersonate("#" + srcOwnerKey);
+                                ResponseMessage.addInfoMessage("Impersonating #" + srcOwnerKey + " (" + srcOwnerQN + ")");
+                            }
+                        }catch (Exception e){
+                            ResponseMessage.addErrorMessage("Error when impersonating src owner " + srcOwnerKey);
+                            LOG.error("Error when impersonating src owner",e);
+                        }
 
-                        targetContentKey = getTargetserverClient().createImageContent(createImageContentParams);
+                        targetContentKey = targetserverClient.createImageContent(createImageContentParams);
                         createMigratedContent(displayName, "image", sourceContentKey, targetContentKey, sourceContenttype, targetContenttype);
                     } else {
+                        //TODO: Implement updating of images?
                         ResponseMessage.addInfoMessage("Image already exists, skipping..");
                     }
                 } else if (isFile) {
@@ -950,11 +991,22 @@ public class CopyContentController extends HttpController {
                         }
                         createFileContentParams.fileContentData = fileContentDataInput;
 
-                        targetContentKey = getTargetserverClient().createFileContent(createFileContentParams);
+                        try {
+                            if (isImpersonationAllowed(srcOwnerQN, targetserverClient)){
+                                targetserverClient.impersonate("#" + srcOwnerKey);
+                                ResponseMessage.addInfoMessage("Impersonating #" + srcOwnerKey + " (" + srcOwnerQN + ")");
+                            }
+                        }catch (Exception e){
+                            ResponseMessage.addErrorMessage("Error when impersonating src owner " + srcOwnerKey);
+                            LOG.error("Error when impersonating src owner", e);
+                        }
+
+                        targetContentKey = targetserverClient.createFileContent(createFileContentParams);
                         createMigratedContent(displayName, "file", sourceContentKey, targetContentKey, sourceContenttype, targetContenttype);
                     } else {
+                        //TODO: Implement updating of files?
                         ResponseMessage.addInfoMessage("File already exists, skipping..");
-                        UpdateFileContentParams updateFileContentParams = new UpdateFileContentParams();
+                        /*UpdateFileContentParams updateFileContentParams = new UpdateFileContentParams();
                         updateFileContentParams.contentKey = Integer.parseInt(((Element) XPath.selectSingleNode(existingMigratedContent, "//newkey")).getValue());
                         updateFileContentParams.fileContentData = fileContentDataInput;
                         if (publishFromDate != null) {
@@ -962,7 +1014,7 @@ public class CopyContentController extends HttpController {
                         }
                         if (status != null) {
                             updateFileContentParams.status = status;
-                        }
+                        }*/
                     }
                 } else {
                     if (importConfig == null) {
@@ -1099,7 +1151,18 @@ public class CopyContentController extends HttpController {
                         if (publishFromDate != null) {
                             createContentParams.publishFrom = publishFromDate;
                         }
-                        Integer targetContentKey = getTargetserverClient().createContent(createContentParams);
+                        try {
+                            if (isImpersonationAllowed(srcOwnerQN, targetserverClient)){
+                                targetserverClient.impersonate("#" + srcOwnerKey);
+                                ResponseMessage.addInfoMessage("Impersonating #" + srcOwnerKey + " (" + srcOwnerQN + ")");
+                            }
+                        }catch (Exception e){
+                            ResponseMessage.addErrorMessage("Error when impersonating src owner " + srcOwnerKey);
+                            LOG.error("Error when impersonating src owner",e);
+                        }
+
+                        Integer targetContentKey = targetserverClient.createContent(createContentParams);
+                        targetserverClient.removeImpersonation();
                         createMigratedContent(displayName, "content", sourceContentKey, targetContentKey, sourceContenttype, targetContenttype);
                     } else {
                         LOG.info("Content exists, update it");
@@ -1115,12 +1178,12 @@ public class CopyContentController extends HttpController {
                         updateContentParams.changeComment = "ccontent plugin updated content from content with key " + sourceContentKey;
                         updateContentParams.updateStrategy = ContentDataInputUpdateStrategy.REPLACE_NEW;
 
-                        if (isMigratedContentModifiedByCustomer && lastModifiedByKeyNorwegianVersion != null) {
+                        /*if (isMigratedContentModifiedByCustomer && srcModifierKey != null) {
                             try {
-                                getTargetserverClient().impersonate("#" + lastModifiedByKeyNorwegianVersion);
+                                targetserverCkuebt.impersonate("#" + srcModifierKey);
                             } catch (Exception e) {
                             }
-                        }
+                        }*/
                         if (publishFromDate != null) {
                             updateContentParams.publishFrom = publishFromDate;
                         }
@@ -1129,8 +1192,19 @@ public class CopyContentController extends HttpController {
                         }
 
                         updateContentParams.contentData = contentDataInput;
-                        getTargetserverClient().updateContent(updateContentParams);
-                        getTargetserverClient().removeImpersonation();
+
+                        try {
+                            if (isImpersonationAllowed(srcModifierQN, targetserverClient)) {
+                                targetserverClient.impersonate("#" + srcModifierKey);
+                                ResponseMessage.addInfoMessage("Impersonating #" + srcModifierKey + " (" + srcModifierQN + ")");
+                            }
+                        }catch (Exception e){
+                            ResponseMessage.addErrorMessage("Error when impersonating src modifier " + srcModifierKey);
+                            LOG.error("Error when impersonating src modifier", e);
+                        }
+
+                        targetserverClient.updateContent(updateContentParams);
+                        targetserverClient.removeImpersonation();
                         LOG.info("Content updated, publishdate is " + updateContentParams.publishFrom);
 
 
@@ -1142,6 +1216,35 @@ public class CopyContentController extends HttpController {
             }
             fileCopyProgressCounter++;
         }
+    }
+
+    private boolean isImpersonationAllowed(String qName, RemoteClient targetserverClient) {
+        if ("admin".equalsIgnoreCase(qName)){
+            return false;
+        }
+        if ("anonymous".equalsIgnoreCase(qName)){
+            return false;
+        }
+
+        GetUserParams getUserParams = new GetUserParams();
+        getUserParams.includeCustomUserFields = false;
+        getUserParams.includeMemberships = false;
+        getUserParams.normalizeGroups = false;
+        getUserParams.user = qName;
+        Document userDoc = null;
+        try {
+            ResponseMessage.addInfoMessage("Check if user exists: " + qName);
+            userDoc = targetserverClient.getUser(getUserParams);
+            //xmlOutputter.output(userDoc, System.out);
+        }catch (Exception e){
+            ResponseMessage.addErrorMessage("Error when getting user to impersonate");
+        }
+        if (userDoc!=null && userDoc.hasRootElement()){
+            ResponseMessage.addInfoMessage("User exist, impersonation is allowed for " + qName);
+            return true;
+        }
+        ResponseMessage.addInfoMessage("User does not exist, impersonation is not allowed for " + qName);
+        return false;
     }
 
     private void scanHtmlAreaForInternalLinks(List<Element> htmlElements) throws Exception {
@@ -1236,6 +1339,7 @@ public class CopyContentController extends HttpController {
         createMigratedContentParams.publishFrom = new Date();
         getTargetserverClient().createContent(createMigratedContentParams);
 
+
     }
 
 
@@ -1306,6 +1410,8 @@ public class CopyContentController extends HttpController {
             e.printStackTrace();
         }
     }
+
+
 
     private RemoteClient getSourceserverClient() {
         ClientProvider clientProvider = new ClientProvider(pluginEnvironment);
