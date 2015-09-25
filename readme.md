@@ -12,10 +12,10 @@ of how the plugin works.
 * re-mapping SelectorInput values from old to new while migrating
 * keep existing relatedcontent by keeping a log of old-key / new-key in the migrate-content contenttype
 * parse through htmlarea inputtype and migrate internal page://, content://, attachment:// and file:// urls
-* converting between input types f.eks.
-** text -> textarea
-** text -> htmlarea
-** htmlarea -> text
+* converting between input types f.eks.:
+* text -> textarea
+* text -> htmlarea
+* htmlarea -> text
 
 ##Instructions
 
@@ -67,28 +67,28 @@ TODO: Updating images and files is not implemented, only copying
 The plugin will first look for a import config with name "ccontent", and then for a more specific one with prefix 
 "ccontent" + the name of the source contentttype. In this way we allow multiple contenttypes to map to one single by
 using multiple import configurations.
-
-<imports>
-    <import mode="xml" name="ccontent-kontakt">
-        <!--mappings from old contenttype kontakt-->
-        <mapping dest="name" src="heading"/>
-        <mapping dest="abbreviation" src="departmentabbr"/>
-        <mapping dest="position" src="position"/>
-        <mapping dest="position-internal" src="internal"/>
-        <mapping dest="department" src="department"/>
-        <mapping dest="email-address" src="email"/>
-        <mapping dest="phone" src="phone"/>
-        <mapping dest="image" src="image"/>
-        <mapping dest="description" src="description"/>
-        <mapping dest="url" src="url"/>
-    </import>
-    <import mode="xml" name="ccontent-foretak">
-        <mapping dest="name" src="name"/>
-        <mapping dest="url" src="url"/>
-        <mapping dest="abbreviation" src="shortname"/>
-        <mapping dest="image" src="logo"/>
-    </import>
-</imports>
+    
+    <imports>
+        <import mode="xml" name="ccontent-kontakt">
+            <!--mappings from old contenttype kontakt-->
+            <mapping dest="name" src="heading"/>
+            <mapping dest="abbreviation" src="departmentabbr"/>
+            <mapping dest="position" src="position"/>
+            <mapping dest="position-internal" src="internal"/>
+            <mapping dest="department" src="department"/>
+            <mapping dest="email-address" src="email"/>
+            <mapping dest="phone" src="phone"/>
+            <mapping dest="image" src="image"/>
+            <mapping dest="description" src="description"/>
+            <mapping dest="url" src="url"/>
+        </import>
+        <import mode="xml" name="ccontent-foretak">
+            <mapping dest="name" src="name"/>
+            <mapping dest="url" src="url"/>
+            <mapping dest="abbreviation" src="shortname"/>
+            <mapping dest="image" src="logo"/>
+        </import>
+    </imports>
 
 ###Existing examples
 
