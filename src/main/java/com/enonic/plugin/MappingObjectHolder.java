@@ -1,6 +1,7 @@
 package com.enonic.plugin;
 
 
+import com.google.common.base.Strings;
 import org.jdom.Element;
 import org.jdom.output.Format;
 import org.jdom.output.XMLOutputter;
@@ -15,6 +16,7 @@ public class MappingObjectHolder {
     private Element targetInputElement;
     private Element sourceInputElement;
     private Element contentInputElement;
+    private String blockGroupBasePath = "";
 
     public void setSourceContenttype(Contenttype sourceContenttype) {
         this.sourceContenttype = sourceContenttype;
@@ -52,9 +54,7 @@ public class MappingObjectHolder {
         return targetInputElement;
     }
 
-    public Element getSourceInputElement() {
-        return sourceInputElement;
-    }
+    public Element getSourceInputElement() {return sourceInputElement;}
 
     public void setContentInputElement(Element contentInputElement) {
         this.contentInputElement = contentInputElement;
@@ -65,11 +65,16 @@ public class MappingObjectHolder {
     }
 
     public String toString() {
-        return "\nsourceContentType:"+sourceContenttype.getName()+
-                "\ntargetContentType:"+targetContenttype.getName()+
-                "\ninputMapping.src:"+inputMapping.getAttributeValue("src")+
-                "\ninputMapping.dest:"+inputMapping.getAttributeValue("dest")+
-                "\ncontentInputElement.getValue():"+contentInputElement.getValue();
+        try{
+            return "\nsourceContentType:"+sourceContenttype.getName()+
+                    "\ntargetContentType:"+targetContenttype.getName()+
+                    "\ninputMapping.src:"+inputMapping.getAttributeValue("src")+
+                    "\ninputMapping.dest:"+inputMapping.getAttributeValue("dest")+
+                    "\ncontentInputElement.getValue():"+contentInputElement.getValue();
+        }catch (Exception e){
+            return "MappingObjectHolder.toString(): Values not initiated";
+        }
+
     }
 
     public String getSourceInputType() {
@@ -83,5 +88,17 @@ public class MappingObjectHolder {
     }
     public String getInputMappingDest(){
         return getInputMapping().getAttributeValue("dest");
+    }
+
+    public void setBlockGroupBasePath(String blockGroupBasePath) {
+        this.blockGroupBasePath = blockGroupBasePath;
+    }
+
+    public String getInputMappingSrcXpath(){
+        //Should be set set explicitly if f.eks. block groupd migration with base attribute
+        if (!Strings.isNullOrEmpty(blockGroupBasePath)){
+            return blockGroupBasePath+"/";
+        }
+        return "contentdata/";
     }
 }

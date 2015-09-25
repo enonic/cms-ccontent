@@ -21,6 +21,14 @@
                     <display>Old contenttype</display>
                     <xpath>contentdata/oldcontenttype</xpath>
                 </input>
+                <input type="xml" name="oldownerxml" readonly="true">
+                    <display>owner</display>
+                    <xpath>contentdata/oldownerxml</xpath>
+                </input>
+                <input type="xml" name="oldmodifierxml" readonly="true">
+                    <display>modifier</display>
+                    <xpath>contentdata/oldmodifierxml</xpath>
+                </input>
             </block>
             <block name="New">
                 <input name="newkey" readonly="false" required="true" type="text" validate="integer">

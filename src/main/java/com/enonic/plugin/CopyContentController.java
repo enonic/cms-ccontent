@@ -46,7 +46,7 @@ import java.util.*;
 public class CopyContentController extends HttpController {
 
     Logger LOG = LoggerFactory.getLogger(getClass());
-    List<ResponseMessage> responseMessages = new ArrayList<ResponseMessage>();
+
     HashMap<Contenttype, Contenttype> contenttypeMap = new HashMap<Contenttype, Contenttype>();
     List<Contenttype> sourceContenttypes = new ArrayList<Contenttype>();
 
@@ -82,6 +82,7 @@ public class CopyContentController extends HttpController {
         setPriority(0);
         //disableSslVerification();
     }
+
 
     private void setupAuthentication() {
 
@@ -130,54 +131,19 @@ public class CopyContentController extends HttpController {
             Client remoteClient = ClientFactory.getRemoteClient(sourceserverUrl);
             remoteClient.logout();
             remoteClient.login(sourceserverUsername, sourceserverPassword);
-            addInfoMessage("Authentication for remote client successful");
+            ResponseMessage.addInfoMessage("Authentication for remote client successful");
         } catch (Exception e) {
-            addErrorMessage("Authentication for remote client failed");
+            ResponseMessage.addErrorMessage("Authentication for remote client failed");
         }
 
         try {
             Client localClient = ClientFactory.getRemoteClient(targetserverUrl);
             localClient.logout();
             localClient.login(targetserverUsername, targetserverPassword);
-            addInfoMessage("Authentication for local client successful");
+            ResponseMessage.addInfoMessage("Authentication for local client successful");
         } catch (Exception e) {
-            addErrorMessage("Authentication for local client failed");
+            ResponseMessage.addErrorMessage("Authentication for local client failed");
         }
-
-
-    }
-
-
-    public RemoteClient getSourceserverClient() {
-        if (Strings.isNullOrEmpty((String) pluginEnvironment.getSharedObject("context_sourceserverUrl"))) {
-            return null;
-        }
-        RemoteClient remoteClient = ClientFactory.getRemoteClient((String) pluginEnvironment.getSharedObject("context_sourceserverUrl"));
-        try {
-            remoteClient.logout();
-            String sourceserverUsername = (String) pluginEnvironment.getSharedObject("context_sourceserverUsername");
-            String sourceserverPassword = (String) pluginEnvironment.getSharedObject("context_sourceserverPassword");
-            remoteClient.login(sourceserverUsername, sourceserverPassword);
-        } catch (Exception e) {
-            addWarningMessage("Exception when getting remote client. " + e);
-        }
-        return remoteClient;
-    }
-
-    public RemoteClient getTargetserverClient() {
-        if (Strings.isNullOrEmpty((String) pluginEnvironment.getSharedObject("context_targetserverUrl"))) {
-            return null;
-        }
-        RemoteClient localClient = ClientFactory.getRemoteClient((String) pluginEnvironment.getSharedObject("context_targetserverUrl"));
-        try {
-            localClient.logout();
-            String targetserverUsername = (String) pluginEnvironment.getSharedObject("context_targetserverUsername");
-            String targetserverPassword = (String) pluginEnvironment.getSharedObject("context_targetserverPassword");
-            localClient.login(targetserverUsername, targetserverPassword);
-        } catch (Exception e) {
-            addWarningMessage("Exception when getting remote client. " + e);
-        }
-        return localClient;
     }
 
     @Override
@@ -202,16 +168,16 @@ public class CopyContentController extends HttpController {
         response.setContentType("text/html");
         context.setVariable("requestPath", requestPath);
         context.setVariable("url", url);
-        context.setVariable("messages", responseMessages);
+        context.setVariable("messages", ResponseMessage.getResponseMessages());
 
         try {
             templateEngineProvider.setApplicationContext(applicationContext);
             templateEngineProvider.get().process("index", context, response.getWriter());
         } catch (Exception e) {
-            addErrorMessage("Error when rendring thymeleaf template");
+            ResponseMessage.addErrorMessage("Error when rendring thymeleaf template");
             templateEngineProvider.get().process("errors/404", context, response.getWriter());
         }
-        responseMessages.clear();
+        ResponseMessage.clearResponseMessages();
 
     }
 
@@ -330,7 +296,7 @@ public class CopyContentController extends HttpController {
                 sourceContenttype.setKey(Integer.parseInt(StringUtils.substringAfter(parameterName, "targetcontenttypekey_")));
                 sourceContenttype = getContenttype(sourceContenttype.getKey(), null, remoteClient);
                 if (sourceContenttype == null || sourceContenttype.getKey() == null || sourceContenttype.getName() == null) {
-                    addWarningMessage("Source contenttype not correct!");
+                    ResponseMessage.addWarningMessage("Source contenttype not correct!");
                 }
 
                 Contenttype targetContenttype = new Contenttype();
@@ -347,21 +313,21 @@ public class CopyContentController extends HttpController {
                     LOG.info("Create mapping between {} and {}", sourceContenttype.getKey(), targetContenttype.getKey());
                     addContenttypeKey(sourceContenttype, targetContenttype);
                 } else {
-                    addWarningMessage("Could not create contenttype mapping!");
+                    ResponseMessage.addWarningMessage("Could not create contenttype mapping!");
                 }
 
             }
         }
 
         if (sourceCategoryKey == null) {
-            addWarningMessage("Source category key is not set!");
+            ResponseMessage.addWarningMessage("Source category key is not set!");
             return;
         }
 
         Category topCategory = sourceCategory;//getCategoryFolder(sourceCategoryKey, remoteClient, true);
 
         if (topCategory == null) {
-            addWarningMessage("Given source category key yielded no results!");
+            ResponseMessage.addWarningMessage("Given source category key yielded no results!");
             return;
         }
         addSourceContenttypeFromCategory(topCategory);
@@ -400,7 +366,7 @@ public class CopyContentController extends HttpController {
         GetContentTypeConfigXMLParams getContentTypeConfigXMLParams = new GetContentTypeConfigXMLParams();
 
         if (contenttypeKey == null && contenttypeName == null) {
-            addWarningMessage("Returning null from getContenttypeDoc");
+            ResponseMessage.addWarningMessage("Returning null from getContenttypeDoc");
             return null;
         }
 
@@ -437,7 +403,7 @@ public class CopyContentController extends HttpController {
         //Helper.prettyPrint(resultDoc);
 
         /*if (resultDoc == null || XPath.selectSingleNode(resultDoc, "contents/content") == null) {
-            addWarningMessage("Contenttype " + contenttypeName);
+            ResponseMessage.addWarningMessage("Contenttype " + contenttypeName);
             return null;
         }else{
 
@@ -449,7 +415,7 @@ public class CopyContentController extends HttpController {
             result.setKey(key);
             result.setName(name);
         } catch (NullPointerException e) {
-            addWarningMessage("No content exists of contenttype name:" + contenttypeName + " key:" + contenttypeKey + ". This is a prerequisite for creating a mapping!");
+            ResponseMessage.addWarningMessage("No content exists of contenttype name:" + contenttypeName + " key:" + contenttypeKey + ". This is a prerequisite for creating a mapping!");
         }
 
         return result;
@@ -557,9 +523,13 @@ public class CopyContentController extends HttpController {
         mapper.configure(SerializationConfig.Feature.INDENT_OUTPUT, true);
         mapper.setSerializationInclusion(JsonSerialize.Inclusion.NON_NULL);
         mapper.writerWithDefaultPrettyPrinter();
-        responseMessages.add(new ResponseMessage("" + fileCopyProgressCounter, "progress"));
-        mapper.writeValue(context.getHttpServletResponse().getOutputStream(), responseMessages);
-        responseMessages.clear();
+        ResponseMessage.addMessage("" + fileCopyProgressCounter, "progress");
+        try {
+            mapper.writeValue(context.getHttpServletResponse().getOutputStream(), ResponseMessage.getResponseMessages());
+        }catch (Exception e){
+            LOG.error("Error when creating log output", e);
+        }
+        ResponseMessage.clearResponseMessages();
     }
 
     public void copy(WebContext context) throws Exception {
@@ -581,10 +551,10 @@ public class CopyContentController extends HttpController {
             }
         }
         if (sourceCategory != null && targetCategory != null && targetCategory.getKey() != null) {
-            addInfoMessage("1. Create categories");
+            ResponseMessage.addInfoMessage("1. Create categories");
             createCategories(sourceCategory, targetCategory.getKey());
         } else {
-            addInfoMessage("Source and target category are not set correctly! Cancelling..");
+            ResponseMessage.addInfoMessage("Source and target category are not set correctly! Cancelling..");
         }
     }
 
@@ -597,18 +567,18 @@ public class CopyContentController extends HttpController {
 
         Iterator<Category> targetCategories = targetCategory.categories.iterator();
         if (!targetCategories.hasNext()) {
-            addInfoMessage("Target category " + targetCategory.getTitle() + " has no subfolders");
+            ResponseMessage.addInfoMessage("Target category " + targetCategory.getTitle() + " has no subfolders");
         }
-        addInfoMessage("Delete " + targetCategory.categories.size() + " categories");
+        ResponseMessage.addInfoMessage("Delete " + targetCategory.categories.size() + " categories");
         while (targetCategories.hasNext()) {
             Category category = targetCategories.next();
-            addInfoMessage("Target category name, key = " + targetCategory.getTitle() + " " + targetCategory.getKey());
-            addInfoMessage("SubCategory name, superkey = " + category.getTitle() + " " + category.getSuperKey());
+            ResponseMessage.addInfoMessage("Target category name, key = " + targetCategory.getTitle() + " " + targetCategory.getKey());
+            ResponseMessage.addInfoMessage("SubCategory name, superkey = " + category.getTitle() + " " + category.getSuperKey());
 
             if (category.getSuperKey() == null || category.getSuperKey() != null && category.getSuperKey().intValue() == targetCategory.getKey().intValue()) {
                 Integer categoryKey = category.getKey();
                 deleteCategory(categoryKey);
-                addInfoMessage("Deleted target category " + category.getTitle());
+                ResponseMessage.addInfoMessage("Deleted target category " + category.getTitle());
             }
         }
     }
@@ -641,7 +611,7 @@ public class CopyContentController extends HttpController {
                 try {
                     getTargetserverClient().deleteContent(deleteContentParams);
                 } catch (Exception e) {
-                    addWarningMessage("Could not delete mmigrated-content ");
+                    ResponseMessage.addWarningMessage("Could not delete mmigrated-content ");
                 }
             }
         }
@@ -659,51 +629,59 @@ public class CopyContentController extends HttpController {
             if (sourceContenttype != null) {
                 targetContenttype = contenttypeMap.get(sourceContenttype);
                 if (targetContenttype == null) {
-                    addErrorMessage("No valid mapping exists for contenttype " + sourceContenttype.getName() + " (" + sourceContenttype.getKey() + "). Will skip content creation.");
+                    ResponseMessage.addErrorMessage("No valid mapping exists for contenttype " + sourceContenttype.getName() + " (" + sourceContenttype.getKey() + "). Will skip content creation.");
                 } else {
-                    addInfoMessage("Source '" + category.getTitle() + "' (" + category.getContenttype() + ", " + category.getContenttypeKey() + "), Target: '" + category.getTitle() + "' (" + targetContenttype.getName() + ", " + targetContenttype.getKey() + ")");
+                    ResponseMessage.addInfoMessage("Source '" + category.getTitle() + "' (" + category.getContenttype() + ", " + category.getContenttypeKey() + "), Target: '" + category.getTitle() + "' (" + targetContenttype.getName() + ", " + targetContenttype.getKey() + ")");
                 }
             } else {
-                addInfoMessage("Source contenttype is null for category, will not create content");
+                ResponseMessage.addInfoMessage("Source contenttype is null for category, will not create content");
             }
         } else {
-            addWarningMessage("No contenttype mapping for category");
+            ResponseMessage.addWarningMessage("No contenttype mapping for category");
         }
 
         Integer targetCategoryKey = null;
-        addInfoMessage("Check if category is already migrated");
-        Element existingCategory = getExistingMigratedContentOrCategory(category.getKey(), "category");
+        ResponseMessage.addInfoMessage("Check if category is already migrated");
+        Element existingCategory = getExistingContentHandler().getExistingMigratedContentOrCategory(category.getKey(), "category");
 
         if (existingCategory == null) {
-            addInfoMessage("Create category " + category.getTitle() + " from skratch");
+            ResponseMessage.addInfoMessage("Create category " + category.getTitle() + " from skratch");
             CreateCategoryParams createCategoryParams = new CreateCategoryParams();
             createCategoryParams.name = category.getTitle();
 
             if (targetContenttype != null && targetContenttype.getKey() != null) {
                 createCategoryParams.contentTypeKey = targetContenttype.getKey();
             }
-            addInfoMessage("Create new category under parent category key " + parentCategoryKey);
+            ResponseMessage.addInfoMessage("Create new category under parent category key " + parentCategoryKey);
             createCategoryParams.parentCategoryKey = parentCategoryKey;
 
             try {
                 targetCategoryKey = getTargetserverClient().createCategory(createCategoryParams);
-                addInfoMessage("Created category " + category.getTitle() + " with id " + targetCategoryKey);
-                createMigratedContent(category.getTitle(), "category", category.getKey(), targetCategoryKey, sourceContenttype, targetContenttype);
-                addInfoMessage("Created migrated-content contenttype for category");
+                ResponseMessage.addInfoMessage("Created category " + category.getTitle() + " with id " + targetCategoryKey);
+
+                MigratedContent migratedContent = new MigratedContent();
+                migratedContent.setTitle(category.getTitle());
+                migratedContent.setType("category");
+                migratedContent.setOldContentKey(category.getKey());
+                migratedContent.setOldContenttype(sourceContenttype);
+                migratedContent.setNewContenttype(targetContenttype);
+                migratedContent.setNewContentKey(targetCategoryKey);
+                createMigratedContent(migratedContent);
+                ResponseMessage.addInfoMessage("Created migrated-content contenttype for category");
 
             } catch (Exception e) {
-                addErrorMessage("Exception while creating category");
+                ResponseMessage.addErrorMessage("Exception while creating category");
             }
         } else {
-            addInfoMessage("Get previously migrated category");
+            ResponseMessage.addInfoMessage("Get previously migrated category");
             targetCategoryKey = Integer.parseInt(((Element) XPath.selectSingleNode(existingCategory, "//newkey")).getValue());
         }
 
         if (targetContenttype != null && copyContent) {
-            addInfoMessage("Will copy content for category " + category.getTitle());
-            copyContent(category.getKey(), targetCategoryKey, sourceserverClient);
+            ResponseMessage.addInfoMessage("Will copy content for category " + category.getTitle());
+            copyContent(category.getKey(), targetCategoryKey);
         } else {
-            addInfoMessage("Will not copy content for category " + category.getTitle());
+            ResponseMessage.addInfoMessage("Will not copy content for category " + category.getTitle());
         }
 
         Iterator<Category> categoryIt = category.categories.iterator();
@@ -720,7 +698,10 @@ public class CopyContentController extends HttpController {
 
     }
 
-    private void copyContent(Integer sourceCategoryKey, Integer targetCategoryKey, RemoteClient sourceserverClient) throws Exception {
+    private void copyContent(Integer sourceCategoryKey, Integer targetCategoryKey) throws Exception {
+
+        RemoteClient targetserverClient = getTargetserverClient();
+        RemoteClient sourceserverClient = getSourceserverClient();
 
         GetContentByCategoryParams getContentByCategoryParams = new GetContentByCategoryParams();
         getContentByCategoryParams.includeOfflineContent = true;
@@ -740,14 +721,14 @@ public class CopyContentController extends HttpController {
         try {
             sourceContenttypeKey = ((Attribute) XPath.selectSingleNode(document, "contents/content[1]/@contenttypekey")).getIntValue();
         } catch (Exception e) {
-            addInfoMessage("Category with key " + sourceCategoryKey + " has no content to be copied, moving on");
+            ResponseMessage.addInfoMessage("Category with key " + sourceCategoryKey + " has no content to be copied, moving on");
             return;
         }
 
         Contenttype sourceContenttype = getContenttype(sourceContenttypeKey, null, sourceserverClient);
 
         if (!contenttypeMap.containsKey(sourceContenttype)) {
-            addInfoMessage("No contenttype mapping exists for contenttype " + sourceContenttype.getName() + "(" + sourceContenttype.getKey() + ")");
+            ResponseMessage.addInfoMessage("No contenttype mapping exists for contenttype " + sourceContenttype.getName() + "(" + sourceContenttype.getKey() + ")");
             return;
         }
 
@@ -755,39 +736,39 @@ public class CopyContentController extends HttpController {
 
 
         if (sourceContenttype == null || targetContenttype == null || sourceContenttype.getKey() == null || targetContenttype.getKey() == null) {
-            addWarningMessage("Contenttypes are not correctly mapped, aborting copy of content");
+            ResponseMessage.addWarningMessage("Contenttypes are not correctly mapped, aborting copy of content");
             return;
         } else {
-            addInfoMessage("Migrate source contenttype " + sourceContenttype.getName() + " to target contenttype " + targetContenttype.getName());
+            ResponseMessage.addInfoMessage("Migrate source contenttype " + sourceContenttype.getName() + " to target contenttype " + targetContenttype.getName());
         }
-        addInfoMessage("Get source and target contenttype doc for source and target keys " + sourceContenttype.getKey() + " " + targetContenttype.getKey());
+        ResponseMessage.addInfoMessage("Get source and target contenttype doc for source and target keys " + sourceContenttype.getKey() + " " + targetContenttype.getKey());
 
         Document sourceContenttypeDoc = getContenttypeDoc(sourceContenttype.getKey(), null, sourceserverClient);
-        Document targetContenttypeDoc = getContenttypeDoc(targetContenttype.getKey(), null, getTargetserverClient());
+        Document targetContenttypeDoc = getContenttypeDoc(targetContenttype.getKey(), null, targetserverClient);
 
         if (sourceContenttypeDoc == null) {
-            addErrorMessage("Source contenttype doc is null, aborting");
+            ResponseMessage.addErrorMessage("Source contenttype doc is null, aborting");
             return;
         }
         if (targetContenttypeDoc == null) {
-            addErrorMessage("Target contenttype doc is null, aborting");
+            ResponseMessage.addErrorMessage("Target contenttype doc is null, aborting");
             return;
         }
 
         List<Element> contentElements = XPath.selectNodes(document, "contents/content");
         int numberOfContentToCopy = contentElements.size();
-        addInfoMessage("Copy " + numberOfContentToCopy + " content..");
+        ResponseMessage.addInfoMessage("Copy " + numberOfContentToCopy + " content..");
 
         if (contentElements == null || contentElements.isEmpty()) {
             return;
         }
 
         //TODO:Fetch the import config named 'ccontent', only nescessary for content, can be optimized
-        addInfoMessage("Check if contenttype has an import config named 'ccontent'");
+        ResponseMessage.addInfoMessage("Check if contenttype has an import config named 'ccontent'");
         Element importConfig = null;
         importConfig = (Element) XPath.selectSingleNode(targetContenttypeDoc, "//imports/import[@name='ccontent']");
         if (importConfig == null) {
-            addInfoMessage("No import config. Check if contenttype has an import config named 'ccontent-" + sourceContenttype.getName() + "'");
+            ResponseMessage.addInfoMessage("No import config. Check if contenttype has an import config named 'ccontent-" + sourceContenttype.getName() + "'");
             //Fetch the import config especially for this sourceContentType, in case of n-to-1 mapping between contenttypes
             importConfig = (Element) XPath.selectSingleNode(targetContenttypeDoc, "//imports/import[@name='ccontent-" + sourceContenttype.getName() + "']");
         }
@@ -798,19 +779,35 @@ public class CopyContentController extends HttpController {
             if (abortCopy) {
                 break;
             }
-            String modifierName = null;
-            String modifierKey = null;
             String displayName = null;
+
+            Element sourceContentModifierEl = null;
+            Element sourceContentOwnerEl = null;
+
+            String targetModifierQN = null;
+            String targetModifierName = null;
+            String targetModifierKey = null;
+
+            String srcModifierQN = null;
+            String srcModifierName = null;
+            String srcModifierKey = null;
+
+            String srcOwnerKey = null;
+            String srcOwnerQN = null;
+            String srcOwnerName = null;
+
+
+
             try {
                 int count = 0;
                 Element contentEl = contentElementsIt.next();
                 if (contentEl == null) {
-                    addWarningMessage("Content element is null, skipping content..");
+                    ResponseMessage.addWarningMessage("Content element is null, skipping content..");
                     continue;
                 }
                 Element displayNameEl = ((Element) XPath.selectSingleNode(contentEl, "display-name"));
                 if (displayNameEl == null) {
-                    addWarningMessage("Displayname is null, this should always be set, skipping content");
+                    ResponseMessage.addWarningMessage("Displayname is null, this should always be set, skipping content");
                     continue;
                 }
                 displayName = displayNameEl.getValue();
@@ -820,7 +817,7 @@ public class CopyContentController extends HttpController {
                 try {
                     publishFromDate = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH).parse(((Attribute) XPath.selectSingleNode(contentEl, "@publishfrom")).getValue());
                 } catch (Exception e) {
-                    addWarningMessage("Exception when setting publishFromDate");
+                    ResponseMessage.addWarningMessage("Exception when setting publishFromDate");
                 }
 
                 Integer sourceContentKey = ((Attribute) XPath.selectSingleNode(contentEl, "@key")).getIntValue();
@@ -833,19 +830,38 @@ public class CopyContentController extends HttpController {
                 boolean isAlreadyMigrated = false;
                 boolean isMigratedContentModifiedByCustomer = false;
 
-                String lastModifiedByKeyNorwegianVersion = null;
+                try{
+                    sourceContentModifierEl = (Element) XPath.selectSingleNode(contentEl, "modifier");
+                    sourceContentModifierEl.setAttribute(new Attribute("timestamp", contentEl.getAttributeValue("timestamp")));
+                    sourceContentModifierEl.setAttribute(new Attribute("publishfrom", contentEl.getAttributeValue("publishfrom")));
+                    srcModifierQN = sourceContentModifierEl.getAttributeValue("qualified-name");
+                    srcModifierKey = sourceContentModifierEl.getAttributeValue("key");
+                    srcModifierName = sourceContentModifierEl.getChildText("name");
+                }catch (Exception e){
+                    ResponseMessage.addWarningMessage("Error while getting modifier for original content");
+                }
+                try{
+                    sourceContentOwnerEl = (Element) XPath.selectSingleNode(contentEl, "owner");
+                    sourceContentOwnerEl.setAttribute(new Attribute("created", contentEl.getAttributeValue("created")));
+                    srcOwnerQN = sourceContentOwnerEl.getAttributeValue("qualified-name");
+                    srcOwnerKey = sourceContentOwnerEl.getAttributeValue("key");
+                    srcOwnerName = sourceContentOwnerEl.getChildText("name");
+                }catch (Exception e){
+                    ResponseMessage.addWarningMessage("Error while getting owner for original content");
+                }
+
 
                 if (!isImage && !isFile) {
-                    List<Element> existingMigratedContents = getExistingMigratedContents(sourceContentKey, "content");
+                    List<Element> existingMigratedContents = getExistingContentHandler().getExistingMigratedContents(sourceContentKey, "content");
                     if (existingMigratedContents == null) {
                         break;
                     }
                     if (existingMigratedContents.size() == 1) {
-                        addInfoMessage(displayName + " is already migrated once");
+                        ResponseMessage.addInfoMessage(displayName + " is already migrated once");
                         isAlreadyMigrated = true;
                     }
                     if (existingMigratedContents.size() > 1) {
-                        addWarningMessage(displayName + " exists in more then one version on target server, something is wrong");
+                        ResponseMessage.addWarningMessage(displayName + " exists in more then one version on target server, something is wrong");
                         isAlreadyMigrated = true;
                     }
 
@@ -859,27 +875,29 @@ public class CopyContentController extends HttpController {
                                 GetContentParams getContentParams = new GetContentParams();
                                 getContentParams.contentKeys = new int[]{newKey};
                                 getContentParams.includeData = true;
-                                migratedContentDoc = getTargetserverClient().getContent(getContentParams);
-                                Element migratedContentModifierNameEl = (Element) XPath.selectSingleNode(migratedContentDoc, "contents/content/modifier/name");
-                                if (migratedContentModifierNameEl != null) {
-                                    modifierName = migratedContentModifierNameEl.getValue();
-                                }
-                                Attribute modifierKeyAttr = (Attribute) XPath.selectSingleNode(migratedContentDoc, "contents/content/modifier/@key");
-                                if (modifierKeyAttr != null) {
-                                    modifierKey = modifierKeyAttr.getValue();
+                                migratedContentDoc = targetserverClient.getContent(getContentParams);
+
+
+                                try{
+                                    Element targetContentModifierEl = (Element) XPath.selectSingleNode(migratedContentDoc, "modifier");
+                                    targetModifierQN = targetContentModifierEl.getAttributeValue("qualified-name");
+                                    targetModifierKey = targetContentModifierEl.getAttributeValue("key");
+                                    targetModifierName = targetContentModifierEl.getChildText("name");
+                                }catch (Exception e){
+                                    ResponseMessage.addWarningMessage("Error while getting modifier for target content");
                                 }
                             }
                         }
                     }
-
-                    if (overwriteWhenExistingMigratedContentIsModified && modifierName != null && !modifierName.equals(getTargetserverClient().getRunAsUserName())) {
-                        LOG.warn("Content '" + displayName + "' is modified by customer " + getTargetserverClient().getRunAsUserName() + ". Skip migrating this content to prevent overwrite!");
+                    //TODO: Use targetModifierQN and sourceModifierQN to test for changes on target server.
+                    /*if (overwriteWhenExistingMigratedContentIsModified && srcModifierQN != null && !srcModifierQN.equals(targetserverClient.getRunAsUserName())) {
+                        LOG.warn("Content '" + displayName + "' is modified by customer " + targetserverClient.getRunAsUserName() + ". Skip migrating this content to prevent overwrite!");
                         continue;
-                    }
+                    }*/
                 }
 
                 if (isImage) {
-                    addInfoMessage("Copy image " + displayName);
+                    ResponseMessage.addInfoMessage("Copy image " + displayName);
                     Integer imageBinaryKey = ((Attribute) XPath.selectSingleNode(contentEl, "contentdata/sourceimage/binarydata/@key")).getIntValue();
 
                     GetContentBinaryParams getContentBinaryParams = new GetContentBinaryParams();
@@ -914,7 +932,7 @@ public class CopyContentController extends HttpController {
                     imageContentDataInput.name = imageNameInput;
 
                     Integer targetContentKey = null;
-                    Element existingMigratedContent = getExistingMigratedContentOrCategory(sourceContentKey, "image");
+                    Element existingMigratedContent = getExistingContentHandler().getExistingMigratedContentOrCategory(sourceContentKey, "image");
                     if (existingMigratedContent == null) {
                         CreateImageContentParams createImageContentParams = new CreateImageContentParams();
                         createImageContentParams.contentData = imageContentDataInput;
@@ -926,14 +944,33 @@ public class CopyContentController extends HttpController {
                         if (status != null) {
                             createImageContentParams.status = status;
                         }
+                        try {
+                            if (isImpersonationAllowed(srcOwnerQN, targetserverClient)){
+                                targetserverClient.impersonate("#" + srcOwnerKey);
+                                ResponseMessage.addInfoMessage("Impersonating #" + srcOwnerKey + " (" + srcOwnerQN + ")");
+                            }
+                        }catch (Exception e){
+                            ResponseMessage.addErrorMessage("Error when impersonating src owner " + srcOwnerKey);
+                            LOG.error("Error when impersonating src owner",e);
+                        }
 
-                        targetContentKey = getTargetserverClient().createImageContent(createImageContentParams);
-                        createMigratedContent(displayName, "image", sourceContentKey, targetContentKey, sourceContenttype, targetContenttype);
+                        targetContentKey = targetserverClient.createImageContent(createImageContentParams);
+                        MigratedContent migratedContent = new MigratedContent();
+                        migratedContent.setTitle(displayName);
+                        migratedContent.setType("image");
+                        migratedContent.setOldContentKey(sourceContentKey);
+                        migratedContent.setNewContentKey(targetContentKey);
+                        migratedContent.setOldContenttype(sourceContenttype);
+                        migratedContent.setNewContenttype(targetContenttype);
+                        migratedContent.setOldModifierXml(sourceContentModifierEl);
+                        migratedContent.setOldOwnerXml(sourceContentOwnerEl);
+                        createMigratedContent(migratedContent);
                     } else {
-                        addInfoMessage("Image already exists, skipping..");
+                        //TODO: Implement updating of images?
+                        ResponseMessage.addInfoMessage("Image already exists, skipping..");
                     }
                 } else if (isFile) {
-                    addInfoMessage("Copy file: " + displayName);
+                    ResponseMessage.addInfoMessage("Copy file: " + displayName);
 
                     GetContentBinaryParams getContentBinaryParams = new GetContentBinaryParams();
                     getContentBinaryParams.contentKey = sourceContentKey;
@@ -966,7 +1003,7 @@ public class CopyContentController extends HttpController {
                     fileContentDataInput.name = fileNameInput;
 
                     Integer targetContentKey = null;
-                    Element existingMigratedContent = getExistingMigratedContentOrCategory(sourceContentKey, "file");
+                    Element existingMigratedContent = getExistingContentHandler().getExistingMigratedContentOrCategory(sourceContentKey, "file");
                     if (existingMigratedContent == null) {
                         CreateFileContentParams createFileContentParams = new CreateFileContentParams();
                         createFileContentParams.categoryKey = targetCategoryKey;
@@ -976,11 +1013,32 @@ public class CopyContentController extends HttpController {
                         }
                         createFileContentParams.fileContentData = fileContentDataInput;
 
-                        targetContentKey = getTargetserverClient().createFileContent(createFileContentParams);
-                        createMigratedContent(displayName, "file", sourceContentKey, targetContentKey, sourceContenttype, targetContenttype);
+                        try {
+                            if (isImpersonationAllowed(srcOwnerQN, targetserverClient)){
+                                targetserverClient.impersonate("#" + srcOwnerKey);
+                                ResponseMessage.addInfoMessage("Impersonating #" + srcOwnerKey + " (" + srcOwnerQN + ")");
+                            }
+                        }catch (Exception e){
+                            ResponseMessage.addErrorMessage("Error when impersonating src owner " + srcOwnerKey);
+                            LOG.error("Error when impersonating src owner", e);
+                        }
+
+                        targetContentKey = targetserverClient.createFileContent(createFileContentParams);
+                        MigratedContent migratedContent = new MigratedContent();
+                        migratedContent.setTitle(displayName);
+                        migratedContent.setType("file");
+                        migratedContent.setOldContentKey(sourceContentKey);
+                        migratedContent.setNewContentKey(targetContentKey);
+                        migratedContent.setOldContenttype(sourceContenttype);
+                        migratedContent.setNewContenttype(targetContenttype);
+                        migratedContent.setOldModifierXml(sourceContentModifierEl);
+                        migratedContent.setOldOwnerXml(sourceContentOwnerEl);
+
+                        createMigratedContent(migratedContent);
                     } else {
-                        addInfoMessage("File already exists, skipping..");
-                        UpdateFileContentParams updateFileContentParams = new UpdateFileContentParams();
+                        //TODO: Implement updating of files?
+                        ResponseMessage.addInfoMessage("File already exists, skipping..");
+                        /*UpdateFileContentParams updateFileContentParams = new UpdateFileContentParams();
                         updateFileContentParams.contentKey = Integer.parseInt(((Element) XPath.selectSingleNode(existingMigratedContent, "//newkey")).getValue());
                         updateFileContentParams.fileContentData = fileContentDataInput;
                         if (publishFromDate != null) {
@@ -988,21 +1046,21 @@ public class CopyContentController extends HttpController {
                         }
                         if (status != null) {
                             updateFileContentParams.status = status;
-                        }
+                        }*/
                     }
                 } else {
                     if (importConfig == null) {
-                        addErrorMessage("No import config, cancelling copy..");
+                        ResponseMessage.addErrorMessage("No import config, cancelling copy..");
                         return;
                     }
-                    addInfoMessage("Copy content " + displayName);
+                    ResponseMessage.addInfoMessage("Copy content " + displayName);
                     ContentDataInput contentDataInput = new ContentDataInput(targetContenttype.getName());
 
                     List<Element> inputMappingListEl = importConfig.getChildren("mapping");
                     List<Element> blockGroupElements = importConfig.getChildren("block");
 
                     if (inputMappingListEl == null && blockGroupElements == null) {
-                        addErrorMessage("No import config mapping, nothing to copy, cancelling copy..");
+                        ResponseMessage.addErrorMessage("No import config mapping, nothing to copy, cancelling copy..");
                         return;
                     }
                     Iterator<Element> inputMappingListElIt = inputMappingListEl.iterator();
@@ -1033,9 +1091,10 @@ public class CopyContentController extends HttpController {
                                     //Iterate every mapping element in the import config
                                     Iterator<Element> blockGroupInputElementsIt = blockGroupInputMappingElements.iterator();
                                     while (blockGroupInputElementsIt.hasNext()) {
+                                        Element currentInputMappingElement = blockGroupInputElementsIt.next();
                                         //TODO: Somewhat cluncky design here. Setters dependent on order.
                                         MappingObjectHolder mappingObjectHolder = new MappingObjectHolder();
-                                        mappingObjectHolder.setInputMapping(blockGroupInputElementsIt.next());
+                                        mappingObjectHolder.setInputMapping(currentInputMappingElement);
                                         mappingObjectHolder.setSourceContenttype(sourceContenttype);
                                         mappingObjectHolder.setTargetContenttype(targetContenttype);
                                         mappingObjectHolder.setSourceInputElement(
@@ -1043,80 +1102,23 @@ public class CopyContentController extends HttpController {
                                         mappingObjectHolder.setTargetInputElement(
                                                 ((Element) XPath.selectSingleNode(targetContenttypeDoc, "//input[@name='" + mappingObjectHolder.getInputMappingDest() + "']")));
                                         mappingObjectHolder.setContentInputElement(blockGroupContent.getChild(mappingObjectHolder.getInputMappingSrc()));
+                                        mappingObjectHolder.setBlockGroupBasePath(blockGroupContent.getAttributeValue("base"));
 
-                                        addInfoMessage("Add " + mappingObjectHolder.getSourceInputType() + " " + mappingObjectHolder.getInputMappingSrc() + " to " + mappingObjectHolder.getTargetInputType() + " " + mappingObjectHolder.getInputMappingDest());
-
-
-                                        if (MappingRules.hasSpecialHandling(mappingObjectHolder)) {
-                                            addInfoMessage("Handling special input " + mappingObjectHolder.getInputMappingDest() + " for contenttype " + mappingObjectHolder.getTargetContenttype().getName());
-                                            addInfoMessage(mappingObjectHolder.toString());
-                                            groupInput.add(MappingRules.getInput(mappingObjectHolder));
-                                        } else if ("text".equals(mappingObjectHolder.getSourceInputType())) {
-                                            groupInput.add(new TextInput(mappingObjectHolder.getInputMappingDest(), blockGroupContent.getChild(mappingObjectHolder.getInputMappingSrc()).getValue()));
-                                        } else if ("image".equals(mappingObjectHolder.getSourceInputType())) {
-                                            Attribute imageKeyAttr = blockGroupContent.getChild(mappingObjectHolder.getInputMappingSrc()).getAttribute("key");
-                                            if (imageKeyAttr != null) {
-                                                addInfoMessage("Old image key" + imageKeyAttr.getValue());
-                                                Integer newImageKey = getExistingMigratedContentOrCategoryKey(imageKeyAttr.getIntValue(), "image");
-                                                if (newImageKey != null) {
-                                                    addInfoMessage("New image key" + newImageKey);
-                                                    groupInput.add(new ImageInput(mappingObjectHolder.getInputMappingDest(), newImageKey));
-                                                }
-                                            }
-                                        } else if ("checkbox".equals(mappingObjectHolder.getSourceInputType())) {
-                                            groupInput.add(new BooleanInput(mappingObjectHolder.getInputMappingDest(), Boolean.parseBoolean(blockGroupContent.getValue())));
-                                        } else if ("radiobutton".equals(mappingObjectHolder.getSourceInputType())) {
-                                            groupInput.add(new SelectorInput(mappingObjectHolder.getInputMappingDest(), blockGroupContent.getValue()));
-                                        } else if ("file".equals(mappingObjectHolder.getSourceInputType())) {
-                                            Integer fileKey = null;
-                                            try {
-                                                fileKey = blockGroupContent.getChild(mappingObjectHolder.getInputMappingSrc()).getChild("file").getAttribute("key").getIntValue();
-                                            } catch (Exception e) {
-                                            }
-                                            if (fileKey == null) {
-                                                LOG.warn("File input key was null, ignoring");
-                                                continue;
-                                            }
-                                            Integer newKey = getExistingMigratedContentOrCategoryKey(fileKey, "file");
-                                            if (newKey != null) {
-                                                addInfoMessage("Found migrated file content, adding to migrated content");
-                                                groupInput.add(new FileInput(mappingObjectHolder.getInputMappingDest(), newKey));
-                                            }
-                                        } else if ("textarea".equals(mappingObjectHolder.getSourceInputType())) {
-                                            LOG.warn("Not implemented! migration of text in block group");
-                                            //TODO: implement migration of textarea in block group
-                                            /*if (targetInputType!=null && targetInputType.equalsIgnoreCase("htmlarea")){
-                                                LOG.info("to htmlarea ");
-                                                HtmlAreaInput input = new HtmlAreaInput(groupInputDest, sourceInputEl.getValue());
-                                                contentDataInput.add(input);
-                                            }else{
-                                                TextAreaInput input = new TextAreaInput(groupInputDest, sourceInputEl.getValue());
-                                                contentDataInput.add(input);
-                                            }*/
-                                        } else if ("htmlarea".equals(mappingObjectHolder.getSourceInputType())) {
-                                            //TODO: implement migration of htmlarea in block group
-                                            LOG.warn("Not implemented! migration of htmlarea in block group");
-                                            /*List<Element> htmlElements = blockGroupContent.getChild(groupInputSrc).getChildren();
-
-                                            if (htmlElements != null && !htmlElements.isEmpty()) {
-                                                try {
-                                                    addInfoMessage("Scanning htmlArea " + groupInputDest + " for internal links..");
-                                                    scanHtmlAreaForInternalLinks(htmlElements);
-                                                } catch (Exception e) {
-                                                    addErrorMessage("Error while scanning for internal links" + e);
-                                                }
-                                                groupInput.add(new HtmlAreaInput(groupInputDest, xmlOutputter.outputString(htmlElements)));
-                                            } else {
-                                                groupInput.add(new HtmlAreaInput(groupInputDest, xmlOutputter.outputString(blockGroupContent.getChild(groupInputSrc))));
-                                            }*/
+                                        ResponseMessage.addInfoMessage("Add " + mappingObjectHolder.getSourceInputType() + " " + mappingObjectHolder.getInputMappingSrc() + " to " + mappingObjectHolder.getTargetInputType() + " " + mappingObjectHolder.getInputMappingDest());
+                                        ResponseMessage.addInfoMessage(mappingObjectHolder.toString());
+                                        InputMapper inputMapper = new InputMapper(getClientProvider(), getExistingContentHandler());
+                                        Input i = inputMapper.getInput(mappingObjectHolder);
+                                        if (i != null) {
+                                            ResponseMessage.addInfoMessage("Adding input " + i.getName() + " to group");
+                                            groupInput.add(i);
                                         }
                                     }
                                 } catch (Exception e) {
-                                    addWarningMessage("Exception when trying to add input field in group " + groupName);
+                                    ResponseMessage.addWarningMessage("Exception when trying to add input field in group " + groupName);
                                 }
                             }
                         } catch (Exception e) {
-                            addErrorMessage("Exception while handling block inputs" + e);
+                            ResponseMessage.addErrorMessage("Exception while handling block inputs" + e);
                         }
                     }
 
@@ -1132,7 +1134,7 @@ public class CopyContentController extends HttpController {
                             Element targetInputEl = ((Element) XPath.selectSingleNode(targetContenttypeDoc, "//input[@name='" + destInput + "']"));
 
                             if (sourceInputEl == null || targetInputEl == null) {
-                                addWarningMessage("Could not get source and target input elements from contenttype document. Source/target=" + sourceInput + "/" + destInput);
+                                ResponseMessage.addWarningMessage("Could not get source and target input elements from contenttype document. Source/target=" + sourceInput + "/" + destInput);
                                 continue;
                             }
                             sourceInputType = sourceInputEl.getAttributeValue("type");
@@ -1151,195 +1153,23 @@ public class CopyContentController extends HttpController {
                             mappingObjectHolder.setInputMapping(inputMapping);
                             mappingObjectHolder.setContentInputElement(contentInputEl);
 
-                            addInfoMessage("if/else - checking input type " + mappingObjectHolder.getTargetInputElement().getName());
-                            if (MappingRules.hasSpecialHandling(mappingObjectHolder)) {
-                                addInfoMessage("Handling special input " + inputMapping.getAttributeValue("dest") + " for contenttype " + targetContenttype.getName());
-                                addInfoMessage(mappingObjectHolder.toString());
-                                contentDataInput.add(MappingRules.getInput(mappingObjectHolder));
-                            } else if ("text".equals(sourceInputType)) {
-                                if (targetInputType != null && targetInputType.equalsIgnoreCase("textarea")) {
-                                    LOG.info("to textarea ");
-                                    TextAreaInput input = new TextAreaInput(destInput, contentInputEl.getValue());
-                                    contentDataInput.add(input);
-                                } else {
-                                    Input input = new TextInput(destInput, contentInputEl.getValue());
-                                    contentDataInput.add(input);
-                                }
-                            } else if ("url".equals(sourceInputType)) {
-                                UrlInput input = new UrlInput(destInput, contentInputEl.getValue());
-                                contentDataInput.add(input);
-                            } else if ("checkbox".equals(sourceInputType)) {
-                                BooleanInput input = new BooleanInput(destInput, Boolean.parseBoolean(contentInputEl.getValue()));
-                                contentDataInput.add(input);
-                            } else if ("radiobutton".equals(sourceInputType)) {
-                                SelectorInput input = new SelectorInput(destInput, contentInputEl.getValue());
-                                contentDataInput.add(input);
-                            } else if ("dropdown".equals(sourceInputType)) {
-                                SelectorInput input = new SelectorInput(destInput, contentInputEl.getValue());
-                                contentDataInput.add(input);
-                            } else if ("file".equals(sourceInputType)) {
-                                Attribute fileKeyAttr = null;
-                                Integer fileKey = null;
-                                try {
-                                    fileKeyAttr = (Attribute) XPath.selectSingleNode(contentInputEl, "file/@key");
-                                    fileKey = fileKeyAttr.getIntValue();
-                                } catch (Exception e) {
-                                }
-                                if (fileKeyAttr == null || fileKey == null) {
-                                    LOG.warn("File input key was null, ignoring");
-                                    continue;
-                                }
-                                Integer newKey = getExistingMigratedContentOrCategoryKey(fileKey, "file");
-                                if (newKey != null) {
-                                    addInfoMessage("Found migrated file content, adding to migrated content");
-                                    FileInput input = new FileInput(destInput, newKey);
-                                    contentDataInput.add(input);
-                                }
-                            } else if ("files".equals(sourceInputType)) {
-                                DeprecatedFilesInput input = new DeprecatedFilesInput(destInput);
-                                Attribute fileKeyAttr = null;
-                                try {
-                                    List<Attribute> fileKeys = XPath.selectNodes(contentInputEl, "file/@key");
-                                    Iterator<Attribute> fileKeysIt = fileKeys.iterator();
-                                    while (fileKeysIt.hasNext()) {
-                                        Attribute fileKey = fileKeysIt.next();
-                                        if (fileKey == null) {
-                                            LOG.warn("File input key was null, ignoring");
-                                            continue;
-                                        }
-                                        Integer newKey = getExistingMigratedContentOrCategoryKey(fileKey.getIntValue(), "file");
-                                        if (newKey != null) {
-                                            addInfoMessage("Found migrated file content, adding to migrated content");
-                                            input.addFile(newKey);
-                                        }
-                                    }
-                                    if (input.getFiles() != null && !input.getFiles().isEmpty()) {
-                                        contentDataInput.add(input);
-                                    }
-                                } catch (Exception e) {
-                                }
-                            } else if ("uploadfile".equals(sourceInputType)) {
-                                Attribute binaryKeyAttr = null;
-                                try {
-                                    binaryKeyAttr = (Attribute) XPath.selectSingleNode(contentInputEl, "binarydata/@key");
-                                    if (binaryKeyAttr != null && binaryKeyAttr.getValue() != null) {
-                                        Integer binaryKey = binaryKeyAttr.getIntValue();
-                                        addInfoMessage("Found binarydata with source key " + binaryKey);
+                            LOG.info(mappingObjectHolder.toString());
 
-                                        GetBinaryParams getBinaryParams = new GetBinaryParams();
-                                        getBinaryParams.binaryKey = binaryKey;
-                                        Document binaryDoc = getTargetserverClient().getBinary(getBinaryParams);
-                                        String fileName = ((Element) XPath.selectSingleNode(binaryDoc, "//filename")).getValue();
-                                        String base64EncodedBinaryString = binaryDoc.getRootElement().getChild("data").getText().trim();
-
-                                        LOG.info("destInput {}", destInput);
-                                        LOG.info("fileName {}", fileName);
-
-                                        BinaryInput binaryInput = new BinaryInput(destInput, base64EncodedBinaryString.getBytes(), fileName);
-                                        contentDataInput.add(binaryInput);
-                                    }
-                                } catch (Exception e) {
-                                    addWarningMessage("Exception when trying to get binary content" + e);
-                                }
-
-                            } else if ("date".equals(sourceInputType)) {
-                                try {
-                                    Date date = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).parse(contentInputEl.getValue());
-                                    DateInput input = new DateInput(destInput, date);
-                                    contentDataInput.add(input);
-                                } catch (Exception e) {
-                                    addWarningMessage("Exception when parsing date for input " + sourceInput + "/" + destInput);
-                                }
-                            } else if ("textarea".equals(sourceInputType)) {
-                                LOG.info("Migrate textarea {}", sourceInput);
-                                if (targetInputType != null && targetInputType.equalsIgnoreCase("htmlarea")) {
-                                    LOG.info("to htmlarea ");
-                                    HtmlAreaInput input = new HtmlAreaInput(destInput, contentInputEl.getValue());
-                                    contentDataInput.add(input);
-                                } else {
-                                    TextAreaInput input = new TextAreaInput(destInput, contentInputEl.getValue());
-                                    contentDataInput.add(input);
-                                }
-                            } else if ("htmlarea".equals(sourceInputType)) {
-                                if (targetInputType != null && targetInputType.equalsIgnoreCase("textarea")) {
-                                    LOG.info("to textarea ");
-                                    TextAreaInput input = new TextAreaInput(destInput, StringUtils.trim(contentInputEl.getValue()));
-                                    contentDataInput.add(input);
-                                } else {
-                                    contentDataInput.add(new HtmlAreaInput(destInput, xmlOutputter.outputString(contentInputEl)));
-                                }
-                            } else if ("relatedcontent".equals(sourceInputType)) {
-                                String multiple = targetInputEl.getAttributeValue("multiple");
-                                if ((multiple == null || "true".equals(multiple)) && "relatedcontent".equals(targetInputType)) {
-                                    List<Element> relatedContentKeys = XPath.selectNodes(contentEl, "contentdata/" + sourceInput + "/content");
-                                    if (relatedContentKeys != null && !relatedContentKeys.isEmpty()) {
-                                        RelatedContentsInput relatedContentsInput = new RelatedContentsInput(destInput);
-                                        Iterator<Element> relatedContentKeysIt = relatedContentKeys.iterator();
-                                        while (relatedContentKeysIt.hasNext()) {
-                                            Attribute oldRelatedContentKey = relatedContentKeysIt.next().getAttribute("key");
-                                            if (oldRelatedContentKey != null) {
-                                                Element existingMigratedContent = getExistingMigratedContentOrCategory(Integer.parseInt(oldRelatedContentKey.getValue()), "relatedcontent");
-                                                if (existingMigratedContent != null) {
-                                                    Element newKeyEl = ((Element) XPath.selectSingleNode(existingMigratedContent, "contentdata/newkey"));
-                                                    if (newKeyEl != null) {
-                                                        relatedContentsInput.addRelatedContent(Integer.parseInt(newKeyEl.getValue()));
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        if (!relatedContentsInput.getRelatedContents().isEmpty()) {
-                                            contentDataInput.add(relatedContentsInput);
-                                        }
-                                    }
-                                } else {
-                                    Attribute relatedContentKeyAttr = (Attribute) XPath.selectSingleNode(contentEl, "contentdata/" + sourceInput + "/@key");
-                                    if (relatedContentKeyAttr == null) {
-                                        relatedContentKeyAttr = (Attribute) XPath.selectSingleNode(contentEl, "contentdata/" + sourceInput + "/content/@key");
-                                    }
-                                    if (relatedContentKeyAttr != null) {
-                                        Element existingMigratedContent = getExistingMigratedContentOrCategory(relatedContentKeyAttr.getIntValue(), "content");
-                                        if (existingMigratedContent != null && relatedContentKeyAttr != null) {
-                                            Element newKeyEl = ((Element) XPath.selectSingleNode(existingMigratedContent, "contentdata/newkey"));
-                                            if (newKeyEl != null) {
-                                                //handle special case with conversion from relatedcontent to text
-                                                if ("text".equals(targetInputType)) {
-                                                    addInfoMessage("Convert relatedcontent entry to text entry!");
-                                                    Element titleEl = (Element) XPath.selectSingleNode(existingMigratedContent, "display-name");
-                                                    if (titleEl != null) {
-                                                        contentDataInput.add(new TextInput(destInput, titleEl.getValue()));
-                                                    }
-                                                } else {
-                                                    contentDataInput.add(new RelatedContentInput(destInput, Integer.parseInt(newKeyEl.getValue())));
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                            } else if ("image".equals(sourceInputType)) {
-                                addInfoMessage("Get image content " + sourceInput);
-                                Attribute imageKeyAttr = (Attribute) XPath.selectSingleNode(contentEl, "contentdata/" + sourceInput + "/@key");
-                                if (imageKeyAttr != null) {
-                                    addInfoMessage("Old image key" + imageKeyAttr.getValue());
-                                    Element existingMigratedContent = getExistingMigratedContentOrCategory(imageKeyAttr.getIntValue(), "image");
-                                    if (existingMigratedContent != null) {
-                                        Element newKeyEl = ((Element) XPath.selectSingleNode(existingMigratedContent, "contentdata/newkey"));
-                                        if (newKeyEl != null) {
-                                            addInfoMessage("New image key" + newKeyEl.getValue());
-                                            ImageInput input = new ImageInput(destInput, Integer.parseInt(newKeyEl.getValue()));
-                                            contentDataInput.add(input);
-                                        }
-                                    }
-                                }
+                            InputMapper inputMapper = new InputMapper(getClientProvider(), getExistingContentHandler());
+                            Input i = inputMapper.getInput(mappingObjectHolder);
+                            if (i != null) {
+                                ResponseMessage.addInfoMessage("adding input name:" + i.getName() + " type: + " + i.getType());
+                                contentDataInput.add(i);
                             }
+
                         } catch (Exception e) {
-                            addWarningMessage("Exception when copying input '" + sourceInput + "'");
+                            ResponseMessage.addWarningMessage("Exception when copying input '" + sourceInput + "'");
                             LOG.error("{]", e);
                         }
 
                     }
 
-                    Element existingMigratedContent = getExistingMigratedContentOrCategory(sourceContentKey, "content");
+                    Element existingMigratedContent = getExistingContentHandler().getExistingMigratedContentOrCategory(sourceContentKey, "content");
 
                     if (existingMigratedContent == null) {
                         LOG.info("Content does not exist, create it and create a migrated-content entry");
@@ -1353,15 +1183,37 @@ public class CopyContentController extends HttpController {
                         if (publishFromDate != null) {
                             createContentParams.publishFrom = publishFromDate;
                         }
-                        Integer targetContentKey = getTargetserverClient().createContent(createContentParams);
-                        createMigratedContent(displayName, "content", sourceContentKey, targetContentKey, sourceContenttype, targetContenttype);
+                        try {
+                            if (isImpersonationAllowed(srcOwnerQN, targetserverClient)){
+                                targetserverClient.impersonate("#" + srcOwnerKey);
+                                ResponseMessage.addInfoMessage("Impersonating #" + srcOwnerKey + " (" + srcOwnerQN + ")");
+                            }
+                        }catch (Exception e){
+                            ResponseMessage.addErrorMessage("Error when impersonating src owner " + srcOwnerKey);
+                            LOG.error("Error when impersonating src owner",e);
+                        }
+
+                        Integer targetContentKey = targetserverClient.createContent(createContentParams);
+                        targetserverClient.removeImpersonation();
+
+                        MigratedContent migratedContent = new MigratedContent();
+                        migratedContent.setTitle(displayName);
+                        migratedContent.setType("content");
+                        migratedContent.setOldContentKey(sourceContentKey);
+                        migratedContent.setNewContentKey(targetContentKey);
+                        migratedContent.setOldContenttype(sourceContenttype);
+                        migratedContent.setNewContenttype(targetContenttype);
+                        migratedContent.setOldModifierXml(sourceContentModifierEl);
+                        migratedContent.setOldOwnerXml(sourceContentOwnerEl);
+
+                        createMigratedContent(migratedContent);
                     } else {
                         LOG.info("Content exists, update it");
 
                         UpdateContentParams updateContentParams = new UpdateContentParams();
                         Element newKeyEl = ((Element) XPath.selectSingleNode(existingMigratedContent, "contentdata/newkey"));
                         if (newKeyEl == null) {
-                            addWarningMessage("Could not find newkey for existing content, aborting update..");
+                            ResponseMessage.addWarningMessage("Could not find newkey for existing content, aborting update..");
                             continue;
                         }
                         LOG.info("New key is " + newKeyEl.getValue());
@@ -1369,12 +1221,12 @@ public class CopyContentController extends HttpController {
                         updateContentParams.changeComment = "ccontent plugin updated content from content with key " + sourceContentKey;
                         updateContentParams.updateStrategy = ContentDataInputUpdateStrategy.REPLACE_NEW;
 
-                        if (isMigratedContentModifiedByCustomer && lastModifiedByKeyNorwegianVersion != null) {
+                        /*if (isMigratedContentModifiedByCustomer && srcModifierKey != null) {
                             try {
-                                getTargetserverClient().impersonate("#" + lastModifiedByKeyNorwegianVersion);
+                                targetserverCkuebt.impersonate("#" + srcModifierKey);
                             } catch (Exception e) {
                             }
-                        }
+                        }*/
                         if (publishFromDate != null) {
                             updateContentParams.publishFrom = publishFromDate;
                         }
@@ -1383,19 +1235,61 @@ public class CopyContentController extends HttpController {
                         }
 
                         updateContentParams.contentData = contentDataInput;
-                        getTargetserverClient().updateContent(updateContentParams);
-                        getTargetserverClient().removeImpersonation();
+
+                        try {
+                            if (isImpersonationAllowed(srcModifierQN, targetserverClient)) {
+                                targetserverClient.impersonate("#" + srcModifierKey);
+                                ResponseMessage.addInfoMessage("Impersonating #" + srcModifierKey + " (" + srcModifierQN + ")");
+                            }
+                        }catch (Exception e){
+                            ResponseMessage.addErrorMessage("Error when impersonating src modifier " + srcModifierKey);
+                            LOG.error("Error when impersonating src modifier", e);
+                        }
+
+                        targetserverClient.updateContent(updateContentParams);
+                        targetserverClient.removeImpersonation();
                         LOG.info("Content updated, publishdate is " + updateContentParams.publishFrom);
 
 
                     }
                 }
             } catch (Exception e) {
-                addErrorMessage("Exception!" + e.getMessage());
+                ResponseMessage.addErrorMessage("Exception!" + e.getMessage());
                 LOG.error("Error when copying binary content!!!!! From sourcecategorykey = {}, {}", sourceCategoryKey, e);
             }
             fileCopyProgressCounter++;
         }
+    }
+
+    private boolean isImpersonationAllowed(String qName, RemoteClient targetserverClient) {
+        if ("admin".equalsIgnoreCase(qName)){
+            return false;
+        }
+        if ("anonymous".equalsIgnoreCase(qName)){
+            return false;
+        }
+
+        GetUserParams getUserParams = new GetUserParams();
+        getUserParams.includeCustomUserFields = false;
+        getUserParams.includeMemberships = false;
+        getUserParams.normalizeGroups = false;
+        getUserParams.user = qName;
+        Document userDoc = null;
+        try {
+            ResponseMessage.addInfoMessage("Check if user exists: " + qName);
+            userDoc = targetserverClient.getUser(getUserParams);
+            //xmlOutputter.output(userDoc, System.out);
+        }catch (Exception e){
+            ResponseMessage.addErrorMessage("User does not exist, impersonation is not allowed for \" + qName");
+            LOG.error("User does not exist, impersonation is not allowed for \" + qName",e);
+            return false;
+        }
+        if (userDoc!=null && userDoc.hasRootElement()){
+            ResponseMessage.addInfoMessage("User exist, impersonation is allowed for " + qName);
+            return true;
+        }
+        ResponseMessage.addInfoMessage("User does not exist, impersonation is not allowed for " + qName);
+        return false;
     }
 
     private void scanHtmlAreaForInternalLinks(List<Element> htmlElements) throws Exception {
@@ -1412,7 +1306,7 @@ public class CopyContentController extends HttpController {
                 for (String internalLink : internalLinks) {
                     if (htmlAttributeValue.contains(internalLink)) {
                         try {
-                            addInfoMessage(htmlAttributeValue + " contains " + internalLink);
+                            ResponseMessage.addInfoMessage(htmlAttributeValue + " contains " + internalLink);
                             int beginIndex = htmlAttributeValue.indexOf(internalLink) + internalLink.length();
                             int endIndex = StringUtils.indexOfAny(htmlAttributeValue, internalLinksPostfixes);
                             if (endIndex == -1) {//string cointains only id, no parameters
@@ -1424,35 +1318,35 @@ public class CopyContentController extends HttpController {
                                 guessedOldKey = guessedOldKey.replaceAll("/", "");
                             }
 
-                            addInfoMessage("Guessed old key " + guessedOldKey);
+                            ResponseMessage.addInfoMessage("Guessed old key " + guessedOldKey);
                             if (StringUtils.isNumeric(guessedOldKey)) {
                                 //check if content of type custom content, file, image exists
-                                addInfoMessage("Check if content is migrated for " + internalLink.replace("://", ""));
-                                Element existingMigratedContent = getExistingMigratedContentOrCategory(Integer.parseInt(guessedOldKey), internalLink.replace("://", ""));
+                                ResponseMessage.addInfoMessage("Check if content is migrated for " + internalLink.replace("://", ""));
+                                Element existingMigratedContent = getExistingContentHandler().getExistingMigratedContentOrCategory(Integer.parseInt(guessedOldKey), internalLink.replace("://", ""));
 
                                 if (existingMigratedContent == null && internalLink.contains("attachment")) {
                                     //TODO: Doing this because attachment links can be either images, files or content. Check if contentkeys are 100% unique across different types.
                                     existingMigratedContent = performExtraCheckForAttachments(guessedOldKey);
                                 }
                                 if (existingMigratedContent == null) {
-                                    addWarningMessage("linked content not migrated. Replacing " + internalLink + " link with default 'missing key'");
+                                    ResponseMessage.addWarningMessage("linked content not migrated. Replacing " + internalLink + " link with default 'missing key'");
                                     htmlAttributeValue = htmlAttributeValue.replace(guessedOldKey, pluginEnvironment.getSharedObject("context_missing" + internalLink.replace("://", "") + "key").toString());
                                     htmlAttribute.setValue(htmlAttributeValue);
                                 } else {
-                                    addInfoMessage("Get new key from migrated content");
+                                    ResponseMessage.addInfoMessage("Get new key from migrated content");
                                     String newKey = ((Element) XPath.selectSingleNode(existingMigratedContent, "//newkey")).getValue();
                                     htmlAttributeValue = htmlAttributeValue.replace(guessedOldKey, newKey);
                                     htmlAttribute.setValue(htmlAttributeValue);
-                                    addInfoMessage("Replaced old key " + guessedOldKey + " with new key " + newKey);
+                                    ResponseMessage.addInfoMessage("Replaced old key " + guessedOldKey + " with new key " + newKey);
                                 }
                             } else {
 
-                                addWarningMessage("linked content not migrated as no old key could be found in string");
+                                ResponseMessage.addWarningMessage("linked content not migrated as no old key could be found in string");
                                 //htmlAttribute.setValue(internalLink + pluginEnvironment.getSharedObject("context_missing" + internalLink.replace("://", "") + "key").toString());
                             }
                             break;
                         } catch (Exception e) {
-                            addErrorMessage("Failed to replace internal link key" + e);
+                            ResponseMessage.addErrorMessage("Failed to replace internal link key" + e);
                         }
                     }
 
@@ -1463,136 +1357,38 @@ public class CopyContentController extends HttpController {
     }
 
     private Element performExtraCheckForAttachments(String guessedOldKey) throws Exception {
-        Element existingMigratedContent = getExistingMigratedContentOrCategory(Integer.parseInt(guessedOldKey), "file");
+        ExistingContentHandler existingContentHandler = getExistingContentHandler();
+        Element existingMigratedContent = getExistingContentHandler().getExistingMigratedContentOrCategory(Integer.parseInt(guessedOldKey), "file");
         if (existingMigratedContent == null) {
-            existingMigratedContent = getExistingMigratedContentOrCategory(Integer.parseInt(guessedOldKey), "image");
+            existingMigratedContent = getExistingContentHandler().getExistingMigratedContentOrCategory(Integer.parseInt(guessedOldKey), "image");
         }
         if (existingMigratedContent == null) {
-            existingMigratedContent = getExistingMigratedContentOrCategory(Integer.parseInt(guessedOldKey), "content");
+            existingMigratedContent = getExistingContentHandler().getExistingMigratedContentOrCategory(Integer.parseInt(guessedOldKey), "content");
         }
         return existingMigratedContent;
     }
 
-    private Element getExistingMigratedContentOrCategory(Integer sourceKey, String type) throws Exception {
-        try {
-            Integer migratedContentCategoryKey = Integer.parseInt((String) pluginEnvironment.getSharedObject("context_migratedcontentcategory"));
-            GetContentByCategoryParams getContentByCategoryParams1 = new GetContentByCategoryParams();
-            getContentByCategoryParams1.categoryKeys = new int[]{migratedContentCategoryKey};
-            Document document1 = null;
-            if (type.equals("relatedcontent")) {//look for all kinds of relatedcontent
-                String[] relatedContentTypes = new String[]{"content", "file", "image"};
-                for (String relatedContentType : relatedContentTypes) {
-                    getContentByCategoryParams1.query = "data/oldkey='" + sourceKey + "' and data/type='" + relatedContentType + "'";
-                    document1 = getTargetserverClient().getContentByCategory(getContentByCategoryParams1);
-                    if (XPath.selectSingleNode(document1, "contents/content") != null) {
-                        addInfoMessage("Migrating one " + relatedContentType + " link from old key " + sourceKey);
-                        break;
-                    }
-                }
-            } else {
-                getContentByCategoryParams1.query = "data/oldkey='" + sourceKey + "' and data/type='" + type + "'";
-                document1 = getTargetserverClient().getContentByCategory(getContentByCategoryParams1);
-            }
 
-
-            Element existingContent = (Element) XPath.selectSingleNode(document1, "contents/content");
-            if (existingContent == null) {
-                return null;
-            } else {
-                return existingContent;
-            }
-
-        } catch (Exception e) {
-            addErrorMessage("Exception while getting existing migratedContentOrCategory");
-        }
-        return null;
-    }
-
-    private Integer getExistingMigratedContentOrCategoryKey(Integer sourceKey, String type) throws Exception {
-        try {
-
-            Element existingMigratedContent = getExistingMigratedContentOrCategory(sourceKey, type);
-            if (existingMigratedContent != null) {
-                addInfoMessage("Found existing migrated content..");
-                Element newKeyEl = ((Element) XPath.selectSingleNode(existingMigratedContent, "contentdata/newkey"));
-                if (newKeyEl != null && newKeyEl.getValue() != null) {
-                    Integer newKey = Integer.parseInt(newKeyEl.getValue());
-                    addInfoMessage("..with key " + newKey);
-                    return newKey;
-                }
-            } else {
-                Integer replacementKey = Integer.parseInt(pluginEnvironment.getSharedObject("context_missing" + type + "key").toString());
-                if (replacementKey != null) {
-                    return replacementKey;
-                }
-            }
-        } catch (Exception e) {
-            addErrorMessage("Exception in getExistingMigratedContentOrCategoryKey");
-        }
-        return null;
-
-    }
-
-    private List<Element> getExistingMigratedContents(Integer sourceKey, String type) throws Exception {
-        Integer migratedContentCategoryKey = Integer.parseInt((String) pluginEnvironment.getSharedObject("context_migratedcontentcategory"));
-        GetContentByCategoryParams getContentByCategoryParams1 = new GetContentByCategoryParams();
-        getContentByCategoryParams1.categoryKeys = new int[]{migratedContentCategoryKey};
-        getContentByCategoryParams1.query = "data/oldkey='" + sourceKey + "' and data/type='" + type + "'";
-        Document document1 = getTargetserverClient().getContentByCategory(getContentByCategoryParams1);
-
-        List<Element> existingContent = XPath.selectNodes(document1, "contents/content");
-        if (existingContent == null) {
-            return null;
-        } else {
-            return existingContent;
-        }
-    }
-
-    private void createMigratedContent(String displayName, String type, Integer sourceContentKey, Integer targetContentKey, Contenttype sourceContenttype, Contenttype targetContenttype) {
+    private void createMigratedContent(MigratedContent migratedContent) {
         CreateContentParams createMigratedContentParams = new CreateContentParams();
         createMigratedContentParams.categoryKey = Integer.parseInt((String) pluginEnvironment.getSharedObject("context_migratedcontentcategory"));
         ContentDataInput migratedContentData = new ContentDataInput("migrated-content");
-        migratedContentData.add(new TextInput("oldkey", String.valueOf(sourceContentKey)));
-        migratedContentData.add(new TextInput("newkey", String.valueOf(targetContentKey)));
-        migratedContentData.add(new TextInput("oldcontenttype", sourceContenttype != null ? sourceContenttype.getName() : ""));
-        migratedContentData.add(new TextInput("newcontenttype", targetContenttype != null ? targetContenttype.getName() : ""));
-        migratedContentData.add(new TextInput("title", displayName));
-        migratedContentData.add(new TextInput("type", type));
+        migratedContentData.add(new TextInput("oldkey", String.valueOf(migratedContent.getOldContentKey())));
+        migratedContentData.add(new TextInput("newkey", String.valueOf(migratedContent.getNewContentKey())));
+        migratedContentData.add(new TextInput("oldcontenttype", migratedContent.getOldContenttype() != null ? migratedContent.getOldContenttype().getName() : ""));
+        migratedContentData.add(new TextInput("newcontenttype", migratedContent.getNewContenttype() != null ? migratedContent.getNewContenttype().getName() : ""));
+        migratedContentData.add(new TextInput("title", migratedContent.getTitle()));
+        migratedContentData.add(new TextInput("type", migratedContent.getType()));
+        migratedContentData.add(new XmlInput("oldownerxml",migratedContent.getOldOwnerXml()));
+        migratedContentData.add(new XmlInput("oldmodifierxml",migratedContent.getOldModifierXml()));
         createMigratedContentParams.contentData = migratedContentData;
         createMigratedContentParams.status = ContentStatus.STATUS_APPROVED;
         createMigratedContentParams.publishFrom = new Date();
         getTargetserverClient().createContent(createMigratedContentParams);
 
-    }
-
-    private void addInfoMessage(String message) {
-        addMessage(message, "info");
-    }
-
-    private void addWarningMessage(String message) {
-        addMessage(message, "warning");
-    }
-
-    private void addErrorMessage(String message) {
-        addMessage(message, "error");
-    }
-
-    private void addMessage(String message, String messageType) {
-        if ("error".equals(messageType.toLowerCase())) {
-            LOG.error(message);
-        } else if ("warning".equals(messageType.toLowerCase())) {
-            LOG.warn(message);
-        } else if ("info".equals(messageType.toLowerCase())) {
-            LOG.info(message);
-        }
-        ResponseMessage responseMessage = new ResponseMessage(message, messageType);
-        try {
-            responseMessages.add(responseMessage);
-        } catch (Exception e) {
-            LOG.error(this.getClass().getSimpleName(), "Error getting messages, and adding response message");
-        }
 
     }
+
 
     public void addRequestPathContext(String methodName, WebContext context) {
         if (Strings.isNullOrEmpty(methodName) || methodName.equals("setup")) {
@@ -1603,13 +1399,13 @@ public class CopyContentController extends HttpController {
             Method method = this.getClass().getMethod(methodName, WebContext.class);
             method.invoke(this, context);
         } catch (NoSuchMethodException e) {
-            addWarningMessage("No method defined for requestPath '" + methodName + "'. Exception: " + e);
+            ResponseMessage.addWarningMessage("No method defined for requestPath '" + methodName + "'. Exception: " + e);
             LOG.error("Exception {}", e);
         } catch (IllegalAccessException e) {
-            addErrorMessage("IllegalAccessException with reflection ");
+            ResponseMessage.addErrorMessage("IllegalAccessException with reflection ");
             LOG.error("Exception {}", e);
         } catch (InvocationTargetException e) {
-            addErrorMessage("InvocationTargetException with reflection: " + e);
+            ResponseMessage.addErrorMessage("InvocationTargetException with reflection: " + e);
             LOG.error("Exception {}", e);
         }
     }
@@ -1660,5 +1456,25 @@ public class CopyContentController extends HttpController {
         } catch (KeyManagementException e) {
             e.printStackTrace();
         }
+    }
+
+
+
+    private RemoteClient getSourceserverClient() {
+        ClientProvider clientProvider = new ClientProvider(pluginEnvironment);
+        return clientProvider.getSourceserverClient();
+    }
+
+    private RemoteClient getTargetserverClient() {
+        ClientProvider clientProvider = new ClientProvider(pluginEnvironment);
+        return clientProvider.getTargetserverClient();
+    }
+
+    private ClientProvider getClientProvider() {
+        return new ClientProvider(pluginEnvironment);
+    }
+
+    private ExistingContentHandler getExistingContentHandler() {
+        return new ExistingContentHandler(getClientProvider());
     }
 }

@@ -1,0 +1,285 @@
+<contenttype>
+    <config name="hbartikkel" version="1.0">
+        <form>
+            <title name="title"/>
+            <block name="Artikkel">
+                <input name="title" required="true" type="text">
+                    <display>Tittel</display>
+                    <xpath>contentdata/title</xpath>
+                </input>
+                <input name="meta-description" type="textarea">
+                    <display>Metabeskrivelse (maks 150 tegn)</display>
+                    <xpath>contentdata/meta-description</xpath>
+                    <cols value="60"/>
+                    <rows value="3"/>
+                    <help>Denne teksten vises blant annet i søkeresultat i Google, såkalt metabeskrivelse. Oppsummer innholdet i 2-3 setninger, maks 150 tegn.</help>
+                </input>
+                <input name="preface" type="textarea">
+                    <display>Ingress</display>
+                    <xpath>contentdata/preface</xpath>
+                </input>
+                <input name="body-text" type="htmlarea" mode="xhtml" config="document" required="true">
+                    <display>Brødtekst</display>
+                    <xpath>contentdata/body-text</xpath>
+                    <block-format-elements>h2,h3,h4,h5,h6</block-format-elements>
+                </input>
+            </block>
+            <block name="Bilde til artikkellisten">
+                <input name="list-image" type="image">
+                    <display>Listebilde</display>
+                    <xpath>contentdata/list-image</xpath>
+                </input>
+            </block>
+            <!-- Bildeblokk -->
+            <!--     skal være lik i alle innholstyper som trenger "avansert bildefunksjonalitet" -->
+            <block name="Bilder" group="contentdata/images/image">
+                <input name="image-binary" type="image">
+                    <display>Bilde</display>
+                    <xpath>image-binary</xpath>
+                </input>
+                <input name="image-size" type="radiobutton">
+                    <display>Bildestørrelse</display>
+                    <xpath>image-size</xpath>
+                    <options>
+                        <option value="full" checked="true">Full</option>
+                        <option value="medium">Middels</option>
+                        <option value="small">Liten</option>
+                    </options>
+                </input>
+                <input name="image-description" type="text">
+                    <display>Bildetekst</display>
+                    <xpath>image-description</xpath>
+                    <help>Bildeteksten kommer under bildet. Hvis du ikke fyller ut dette feltet, hentes beskrivelsen fra selve bildet i stedet.</help>
+                </input>
+                <input name="image-description-remove" type="checkbox">
+                    <display>Fjern bildetekst</display>
+                    <xpath>image-description-remove</xpath>
+                    <help>Kryss av hvis du ikke ønsker å ha med bildetekst.</help>
+                </input>
+                <input name="image-photographer-prefix" type="dropdown">
+                    <display>Kreditering: Sett inn type bilde</display>
+                    <xpath>image-photographer-prefix</xpath>
+                    <options>
+                        <option>Velg type</option>
+                        <option value="photo">Foto</option>
+                        <option value="photo-illustration">Illustrasjonsfoto</option>
+                        <option value="illustration">Illustrasjon</option>
+                        <option value="graphic">Grafikk</option>
+                    </options>
+                    <help>Typen bilde vil vises foran navnet på den som krediteres (fotografnavn). Fotografnavnet hentes automatisk fra bildet.</help>
+                </input>
+                <input name="image-photographer-remove" type="checkbox">
+                    <display>Fjern kreditering</display>
+                    <xpath>image-photographer-remove</xpath>
+                    <help>Kryss av hvis du ikke ønsker kreditering.</help>
+                </input>
+                <input name="image-link" type="checkbox">
+                    <display>Lenke til stor versjon av bildet</display>
+                    <xpath>image-link</xpath>
+                    <help>Kryss av hvis du vil ha en lenke på bildet til stor versjon av bildet.</help>
+                </input>
+                <input name="image-alternative-link" type="relatedcontent" multiple="false">
+                    <display>Alternativ lenke på bildet</display>
+                    <xpath>image-alternative-link</xpath>
+                    <contenttype name="HB-lenke"/>
+                    <help>Hvis du velger en relatert lenke her, vil bildet lenke til dette innholdet og ikke til stor versjon av bildet.</help>
+                </input>
+            </block><!-- /bildeblokk -->
+            <!-- Alternative titler -->
+            <block name="Alternative titler" group="contentdata/alternative-titles/alternative-title">
+                <input name="alternative-title-text" type="text">
+                    <display>Alternativ tittel</display>
+                    <xpath>alternative-title-text</xpath>
+                    <help>Skriv inn alternativ tittel for bedre gjenfinning og sortering i lister. Eksempel: «Kviser» som alternativ til tittelen «Akne».</help>
+                </input>
+            </block>
+            <!-- Metadata -->
+            <block name="Metadata">
+                <input name="authors" type="relatedcontent">
+                    <display>Forfattere</display>
+                    <xpath>contentdata/authors</xpath>
+                    <contenttype name="HB-kontakt"/>
+                </input>
+                <input name="mesh-terms" type="relatedcontent">
+                    <display>Emne (MeSH)</display>
+                    <xpath>contentdata/mesh-terms</xpath>
+                    <contenttype name="HB-mesh"/>
+                    <help>MeSH-emneordene du velger her blir publisert som metadata i koden til artikkelen.</help>
+                </input>
+                <input name="document-type" type="relatedcontent" multiple="false">
+                    <display>Dokumenttype</display>
+                    <xpath>contentdata/document-type</xpath>
+                    <contenttype name="HB-dokumenttype"/>
+                    <help>Hvis denne artikkelen er en pasientbrosjyre, må du velge dokumenttype «pasientinformasjon» her for å gjøre disclaimer-teksten synlig på nettsiden.</help>
+                </input>
+            </block>
+            <!-- Relatert innhold -->
+            <!--     alle blokker som hører til løsning for relatert innhold (og vises "aside") -->
+            <!--     skal være like, og i samme rekkerfølge, i alle innholstyper som genererer -->
+            <!--     en egen visning for "relatert innhold" -->
+            <!-- Relaterte filer -->
+            <block name="Relaterte filer (tittel)">
+                <input name="related-files-title" type="text">
+                    <display>Tittel på boks</display>
+                    <xpath>contentdata/related-files-title</xpath>
+                    <default>Relaterte filer</default>
+                </input>
+            </block>
+            <block name="Relaterte filer" group="contentdata/related-files/related-file">
+                <input name="related-file-binary" type="file">
+                    <display>Fil</display>
+                    <xpath>related-file-binary</xpath>
+                </input>
+                <input name="related-file-description" type="text">
+                    <display>Beskrivelse</display>
+                    <xpath>related-file-description</xpath>
+                    <help>Beskrivelsesteksten vises ovenfor filens navn på nettsiden. Hvis du ikke skriver noe i dette feltet, hentes beskrivelsen fra selve filen i stedet.</help>
+                </input>
+            </block>
+            <!-- Relaterte artikler -->
+            <block name="Relaterte artikler">
+                <input name="related-articles-title" type="text">
+                    <display>Tittel på boks</display>
+                    <xpath>contentdata/related-articles-title</xpath>
+                    <default>Relaterte artikler</default>
+                </input>
+                <input name="related-articles" type="relatedcontent">
+                    <display>Artikler</display>
+                    <xpath>contentdata/related-articles</xpath>
+                    <contenttype name="HB-artikkel"/>
+                </input>
+            </block>
+            <!-- Relaterte fagprosedyrer -->
+            <block name="Relaterte fagprosedyrer">
+                <input name="related-clinical-procedures-title" type="text">
+                    <display>Tittel på boks</display>
+                    <xpath>contentdata/related-clinical-procedures-title</xpath>
+                    <default>Relaterte fagprosedyrer</default>
+                </input>
+                <input name="related-clinical-procedures" type="relatedcontent">
+                    <display>Fagprosedyrer</display>
+                    <xpath>contentdata/related-clinical-procedures</xpath>
+                    <contenttype name="HB-fagprosedyre"/>
+                </input>
+            </block>
+            <!-- Relaterte lenker -->
+            <block name="Relaterte lenker">
+                <input name="related-links-title" type="text">
+                    <display>Tittel på boks</display>
+                    <xpath>contentdata/related-links-title</xpath>
+                    <default>Relaterte lenker</default>
+                </input>
+                <input name="related-links" type="relatedcontent">
+                    <display>Lenker</display>
+                    <xpath>contentdata/related-links</xpath>
+                    <contenttype name="HB-lenke"/>
+                </input>
+            </block>
+            <!-- Relaterte fritekstbokser -->
+            <block name="Fleksible fritekstbokser">
+                <input name="related-text-boxes" type="relatedcontent">
+                    <display>Fritekstbokser</display>
+                    <xpath>contentdata/related-text-boxes</xpath>
+                    <contenttype name="HB-fritekstboks"/>
+                </input>
+            </block>
+            <!-- Relaterte personer -->
+            <block name="Relaterte personer">
+                <input name="related-persons-title" type="text">
+                    <display>Tittel på boks</display>
+                    <xpath>contentdata/related-persons-title</xpath>
+                </input>
+                <input name="related-persons" type="relatedcontent">
+                    <display>Personer</display>
+                    <xpath>contentdata/related-persons</xpath>
+                    <contenttype name="HB-kontakt" />
+                </input>
+            </block>
+        </form>
+        <imports>
+            <!--mappings from old contenttype artikkel-->
+            <import mode="xml" name="ccontent-artikkel">
+                <mapping dest="authors" src="authors"/>
+                <!-- <mapping dest="mesh-terms" src="na"/> -->
+                <!-- <mapping dest="document-type" src="na"/> -->
+                <!-- <mapping dest="related-files-title" src="na"/> -->
+                <block base="contentdata/files/file" dest="Relaterte filer">
+                    <mapping dest="related-file-binary" src="files"/>
+                    <mapping dest="related-file-description" src="filedescription"/>
+                </block>
+                <!-- <mapping dest="related-articles-title" src="na"/> -->
+                <mapping dest="related-articles" src="articles"/>
+                <!-- <mapping dest="related-clinical-procedures-title" src="na"/> -->
+                <!-- <mapping dest="related-clinical-procedures" src="na"/> -->
+                <!-- <mapping dest="related-links-title" src="na"/> -->
+                <mapping dest="related-links" src="links"/>
+                <mapping dest="related-text-boxes" src="facts"/>
+
+                <mapping dest="title" src="heading"/>
+                <mapping dest="meta-description" src="preface"/>
+                <!-- <mapping dest="preface" src="na"/> -->
+                <mapping dest="body-text" src="text"/>
+                <mapping dest="list-image" src="teaserimage"/>
+                <block base="contentdata/images/image" dest="Bilder">
+                    <mapping dest="image-binary" src="images"/>
+                    <mapping dest="image-size" src="size"/>
+                    <mapping dest="image-description" src="description"/>
+                    <!-- <mapping dest="image-description-remove" src="na"/> -->
+                    <!-- <mapping dest="image-photographer-prefix" src="na"/> -->
+                    <!-- <mapping dest="image-photographer-remove" src="na"/> -->
+                    <mapping dest="image-link" src="onclick"/>
+                    <!-- <mapping dest="image-alternative-link" src="na"/> -->
+                </block>
+                <block base="contentdata/alternativetitles" dest="Alternative titler">
+                    <mapping dest="alternative-title-text" src="alternativetitle"/>
+                </block>
+            </import>
+            <!--mappings from old contenttype artikkel-pasientinformasjon-->
+            <import mode="xml" name="ccontent-artikkel-pasientinformasjon">
+                <!--shared between both source contenttypes-->
+                <mapping dest="title" src="heading"/>
+                <mapping dest="meta-description" src="preface"/>
+                <mapping dest="body-text" src="text"/>
+                <!--TODO: rfo commented out, does not exist in artikkel-pasientinformasjon
+                <mapping dest="list-image" src="teaserimage"/>-->
+                <block base="contentdata/images/image" dest="Bilder">
+                    <mapping dest="image-binary" src="images"/>
+                    <mapping dest="image-size" src="size"/>
+                    <mapping dest="image-description" src="description"/>
+                    <!-- <mapping dest="image-description-remove" src="na"/> -->
+                    <!-- <mapping dest="image-photographer-prefix" src="na"/> -->
+                    <!-- <mapping dest="image-photographer-remove" src="na"/> -->
+                    <mapping dest="image-link" src="onclick"/>
+                    <!-- <mapping dest="image-alternative-link" src="na"/> -->
+                </block>
+                <!--TODO: rfo, not sure if copying from one to another block group with different name is 100% implemented, must be tested-->
+                <block base="contentdata/alternativetitles" dest="Alternative titler">
+                    <mapping dest="alternative-title-text" src="alternativetitle"/>
+                </block>
+                <!--TODO: rfo, mapping from text to relatedcontent not implemented yet. commenting out while testing 2-1 mapping
+                <mapping dest="authors" src="publisher"/>-->
+                <mapping dest="related-text-boxes" src="relatedtext"/>
+            </import>
+        </imports>
+    </config>
+    <browse>
+        <column title="Tittel" orderby="title">
+            <xpath>contentdata/title</xpath>
+        </column>
+        <column title="Publisert" orderby="publishfrom" titlealign="left" columnalign="left">
+            <date xpath="@publishfrom"/>
+        </column>
+        <column title="Sist endret" orderby="timestamp" titlealign="left" columnalign="left">
+            <date xpath="@timestamp"/>
+        </column>
+        <column title="Sist endret av" orderby="modifier-display-name">
+            <xpath>modifier/display-name</xpath>
+        </column>
+        <column title="Innholdstype" orderby="contenttype">
+            <xpath>@contenttype</xpath>
+        </column>
+    </browse>
+    <indexparameters>
+        <index name="modifier-display-name" xpath="modifier/display-name" />
+    </indexparameters>
+</contenttype>

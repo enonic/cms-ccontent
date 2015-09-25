@@ -1,0 +1,159 @@
+<contenttype>
+    <config name="Artikkel" version="1.0">
+        <form>
+            <title name="heading" />
+            <block name="Artikkel">
+                <input name="heading" required="true" type="text">
+                    <display>Tittel</display>
+                    <xpath>contentdata/heading</xpath>
+                </input>
+                <input name="miniheading" type="text">
+                    <display>Stikktittel</display>
+                    <xpath>contentdata/miniheading</xpath>
+                </input>
+                <input name="article_preface" type="textarea">
+                    <display>Ingress</display>
+                    <xpath>contentdata/preface</xpath>
+                </input>
+                <input config="document" mode="xhtml" name="article_body" required="true" type="htmlarea">
+                    <display>Brødtekst</display>
+                    <xpath>contentdata/text</xpath>
+                </input>
+            </block>
+            <block name="Bilde til artikkelisten">
+                <input name="teaserimage" type="image">
+                    <display>Listebilde</display>
+                    <xpath>contentdata/teaserimage</xpath>
+                </input>
+            </block>
+            <block group="contentdata/images/image" name="Artikkelbilder">
+                <input name="images" type="image">
+                    <display>Bilde</display>
+                    <xpath>images</xpath>
+                </input>
+                <input name="imagesize" type="radiobutton">
+                    <display>Bildestørrelse</display>
+                    <xpath>size</xpath>
+                    <options>
+                        <option value="287">Stor</option>
+                        <option checked="true" value="210">Middels</option>
+                        <option value="140">Liten</option>
+                    </options>
+                </input>
+                <input name="description" type="text">
+                    <display>Bildetekst</display>
+                    <xpath>description</xpath>
+                </input>
+                <input name="alternativetekst" type="text">
+                    <display>Alt-tekst</display>
+                    <xpath>alternativetekst</xpath>
+                </input>
+                <input name="onclick" type="checkbox">
+                    <display>Aktivere lenke på bildet til stor versjon</display>
+                    <xpath>onclick</xpath>
+                </input>
+                <input name="url" type="url">
+                    <display>Lenke</display>
+                    <xpath>url</xpath>
+                </input>
+            </block>
+            <block group="contentdata/alternativetitles" name="Alternative titler">
+                <input name="alternativetitle" type="text">
+                    <display>Alternativ tittel</display>
+                    <xpath>alternativetitle</xpath>
+                </input>
+            </block>
+            <block name="Metadata">
+                <input name="authors" type="relatedcontent">
+                    <display>Forfattere</display>
+                    <xpath>contentdata/authors</xpath>
+                    <contenttype name="kontakt" />
+                </input>
+                <input name="subject" type="relatedcontent">
+                    <display>Emne</display>
+                    <xpath>contentdata/subject</xpath>
+                    <contenttype name="emne" />
+                </input>
+                <input name="pagetheme" type="relatedcontent">
+                    <display>Tema</display>
+                    <xpath>contentdata/theme</xpath>
+                    <contenttype name="tema" />
+                </input>
+            </block>
+            <block group="contentdata/files/file" name="Relaterte filer">
+                <input name="files" type="file">
+                    <display>Fil</display>
+                    <xpath>files</xpath>
+                </input>
+                <input name="filedescription" type="text">
+                    <display>Beskrivelse</display>
+                    <xpath>filedescription</xpath>
+                </input>
+            </block>
+            <block name="Relaterte artikler">
+                <input name="articles" type="relatedcontent">
+                    <display>Artikler</display>
+                    <xpath>contentdata/articles</xpath>
+                    <contenttype name="artikkel" />
+                    <contenttype name="artikkel-microsite" />
+                </input>
+            </block>
+            <block name="Relaterte lenker">
+                <input name="links" type="relatedcontent">
+                    <display>Lenke</display>
+                    <xpath>contentdata/links</xpath>
+                    <contenttype name="lenke" />
+                </input>
+            </block>
+            <block name="Relatert faktaboks">
+                <input name="facts" type="relatedcontent">
+                    <display>Faktaboks</display>
+                    <xpath>contentdata/facts</xpath>
+                    <contenttype name="fritekst" />
+                </input>
+            </block>
+            <block name="Script">
+                <input name="script" type="textarea">
+                    <display>Script</display>
+                    <xpath>contentdata/script</xpath>
+                </input>
+            </block>
+            <block group="contentdata/pagethemes/pagetheme" name="Tema tilknyttet side">
+                <input name="pagekey" type="text" validate="integer">
+                    <display>Menypunktets id</display>
+                    <xpath>pagekey</xpath>
+                    <regexp>^[0-9]+$</regexp>
+                </input>
+                <input name="themesonpage" type="relatedcontent">
+                    <display>Tema</display>
+                    <xpath>theme</xpath>
+                    <contenttype name="tema" />
+                </input>
+            </block>
+        </form>
+        <!--
+    Import xml must be washed: All escaped charachters must be normalized, except & before
+    import. If <a href="..."> is found as the value in <field name="TITTEL"> the import will silently fail for
+    all subsequent  articles!
+    -->
+        <imports>
+            <import base="/item" mode="xml" name="PsykNytt" status="0">
+                <mapping dest="heading" src="title" />
+                <mapping dest="article_preface" src="description" />
+                <mapping dest="article_body" src="encoded" />
+            </import>
+        </imports>
+    </config>
+    <indexparameters>
+        <index xpath="data/links" />
+        <index xpath="data/authors" />
+        <index xpath="data/subject" />
+        <index xpath="data/heading" />
+        <index xpath="data/text" />
+        <index xpath="data/preface" />
+        <index xpath="data/facts" />
+        <index xpath="data/articles" />
+        <index xpath="alternativetitles" />
+        <index xpath="data/miniheading" />
+    </indexparameters>
+</contenttype>
