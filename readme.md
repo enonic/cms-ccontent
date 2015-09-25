@@ -111,6 +111,12 @@ content has been copied from source to target server. Se screenshot of example f
 5. Access the plugin in ICE mode on /site/[0-9]/ccontent
 6. Setup the source server /rpc/bin endpoint and migrated content category key (from step 3)
 
+###Metadata
+
+The plugin will try to preserve things like 'timestamp', 'modified', 'publishfrom', 'owner', 'modifier' and so forth. 
+The whole 'owner' and 'modifier' xml with added attributes will be added to migrated-content log for all content, and 
+if the user that created / last-modified the content on the source server also exist on the target server with same
+qualified-name and key, it will be preserved.
 
 ## Building and deploying locally
 
