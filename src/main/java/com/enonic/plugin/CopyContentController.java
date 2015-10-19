@@ -820,6 +820,13 @@ public class CopyContentController extends HttpController {
                     ResponseMessage.addWarningMessage("Exception when setting publishFromDate");
                 }
 
+                Date publishToDate = null;
+                try {
+                    publishToDate = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH).parse(((Attribute) XPath.selectSingleNode(contentEl, "@publishto")).getValue());
+                } catch (Exception e) {
+                    ResponseMessage.addWarningMessage("Exception when setting publishToDate");
+                }
+
                 Integer sourceContentKey = ((Attribute) XPath.selectSingleNode(contentEl, "@key")).getIntValue();
                 String contenttype = ((Attribute) XPath.selectSingleNode(contentEl, "@contenttype")).getValue();
 
@@ -941,6 +948,9 @@ public class CopyContentController extends HttpController {
                         if (publishFromDate != null) {
                             createImageContentParams.publishFrom = publishFromDate;
                         }
+                        if (publishToDate != null) {
+                            createImageContentParams.publishTo = publishToDate;
+                        }
                         if (status != null) {
                             createImageContentParams.status = status;
                         }
@@ -1007,7 +1017,14 @@ public class CopyContentController extends HttpController {
                     if (existingMigratedContent == null) {
                         CreateFileContentParams createFileContentParams = new CreateFileContentParams();
                         createFileContentParams.categoryKey = targetCategoryKey;
-                        createFileContentParams.publishFrom = publishFromDate;
+
+                        if (publishToDate!=null){
+                            createFileContentParams.publishFrom = publishFromDate;
+                        }
+                        if(publishToDate!=null){
+                            createFileContentParams.publishTo = publishToDate;
+                        }
+
                         if (status != null) {
                             createFileContentParams.status = status;
                         }
@@ -1183,6 +1200,10 @@ public class CopyContentController extends HttpController {
                         if (publishFromDate != null) {
                             createContentParams.publishFrom = publishFromDate;
                         }
+                        if (publishToDate != null) {
+                            createContentParams.publishTo = publishToDate;
+                        }
+
                         try {
                             if (isImpersonationAllowed(srcOwnerQN, targetserverClient)){
                                 targetserverClient.impersonate("#" + srcOwnerKey);
@@ -1230,6 +1251,11 @@ public class CopyContentController extends HttpController {
                         if (publishFromDate != null) {
                             updateContentParams.publishFrom = publishFromDate;
                         }
+
+                        if (publishToDate != null) {
+                            updateContentParams.publishTo = publishToDate;
+                        }
+
                         if (status != null) {
                             updateContentParams.status = status;
                         }
