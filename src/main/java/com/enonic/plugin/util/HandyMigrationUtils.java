@@ -3,18 +3,20 @@ package com.enonic.plugin.util;
 import com.enonic.cms.api.client.ClientException;
 import com.enonic.cms.api.client.ClientFactory;
 import com.enonic.cms.api.client.RemoteClient;
-import com.enonic.cms.api.client.model.DeleteCategoryParams;
-import com.enonic.cms.api.client.model.GetCategoriesParams;
-import com.enonic.cms.api.client.model.GetContentByCategoryParams;
+import com.enonic.cms.api.client.model.*;
+import com.enonic.cms.api.client.model.content.ContentDataInput;
+import com.enonic.cms.api.client.model.content.ContentStatus;
+import com.enonic.cms.api.client.model.content.HtmlAreaInput;
+import com.enonic.cms.api.client.model.content.TextInput;
+import org.jdom.*;
 import org.jdom.Attribute;
-import org.jdom.Document;
-import org.jdom.Element;
-import org.jdom.JDOMException;
 import org.jdom.output.Format;
 import org.jdom.output.XMLOutputter;
 import org.jdom.xpath.XPath;
 
 import javax.net.ssl.*;
+import javax.xml.stream.events.*;
+import javax.xml.stream.events.ProcessingInstruction;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -31,7 +33,8 @@ import java.util.Set;
 public class HandyMigrationUtils {
 
     final static RemoteClient client = ClientFactory.getRemoteClient("http://localhost:8080/rpc/bin");
-    final static XMLOutputter xmlout = new XMLOutputter(Format.getPrettyFormat());
+    final static XMLOutputter xmloutpretty = new XMLOutputter(Format.getPrettyFormat());
+    final static XMLOutputter xmloutraw = new XMLOutputter(Format.getRawFormat());
     //final static Logger LOG = LoggerFactory.getLogger(HandyMigrationUtils.class);
 
     final static int[] CATEGORYKEYS = new int[]{3398};
@@ -48,8 +51,34 @@ public class HandyMigrationUtils {
         String userName = client.login("admin", "password");
         System.out.println("Logged in " + userName);
 
-        deleteCategories(CATEGORYKEYS);
+        //deleteCategories(CATEGORYKEYS);
         //getListOfAllContenttypesWithContentForTopCategory(1298);
+        testWhitespaceBugRelatedToCMS2313();
+    }
+
+    private static void testWhitespaceBugRelatedToCMS2313() throws Exception{
+
+        //Fetch the problematic content
+        GetContentParams getContentParams = new GetContentParams();
+        getContentParams.contentKeys = new int[]{196499};
+        getContentParams.includeData=true;
+        Document doc = client.getContent(getContentParams);
+
+        //Isolate the problematic html
+        Element problematicHtmlEl = (Element)XPath.selectSingleNode(doc, "contents/content/contentdata//subtheme[title='Fremgangsmåte']/text");
+
+        //test xmloutputter settings
+        xmloutraw.output(problematicHtmlEl.getContent(), System.out);
+
+        //Create a new content with the problematic html via api
+        CreateContentParams createContentParams = new CreateContentParams();
+        createContentParams.categoryKey = 3941;
+        ContentDataInput contentDataInput = new ContentDataInput("HB-fagprosedyre");
+        contentDataInput.add(new TextInput("title","_cms2313_test5"));
+
+        contentDataInput.add(new HtmlAreaInput("description",xmloutraw.outputString(problematicHtmlEl.getContent())));
+        createContentParams.contentData = contentDataInput;
+        client.createContent(createContentParams);
     }
 
     private static void getListOfAllContenttypesWithContentForTopCategory(Integer categoryKey) throws IOException, JDOMException {

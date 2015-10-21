@@ -26,7 +26,7 @@ import java.util.Locale;
 public class InputMapper {
 
     Logger LOG = LoggerFactory.getLogger(InputMapper.class);
-    XMLOutputter xmlOutputter = new XMLOutputter(Format.getPrettyFormat());
+    XMLOutputter xmlOutputter = new XMLOutputter(Format.getRawFormat());
 
     ExistingContentHandler existingContentHandler;
     ClientProvider clientProvider;

@@ -12,7 +12,7 @@
     <properties>
         <!--See documentation for this in Readme.md file under 'Building and deploying locally'-->
         <cms.home>${env.CMS_HOME}</cms.home>
-        <cms.version>4.7.6</cms.version>
+        <cms.version>4.7.11</cms.version>
         <spring.version>3.1.3.RELEASE</spring.version>
         <slf4j.version>1.6.6</slf4j.version>
         <servlet.version>2.5</servlet.version>
