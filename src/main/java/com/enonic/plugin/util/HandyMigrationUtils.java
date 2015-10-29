@@ -21,10 +21,8 @@ import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 /*
 * Convenience tool to f.eks. delete all categories recursively including content, when a migration needs to be undone f.x.
@@ -33,7 +31,6 @@ import java.util.Set;
 public class HandyMigrationUtils {
 
     final static RemoteClient client = ClientFactory.getRemoteClient("http://localhost:8080/rpc/bin");
-    final static XMLOutputter xmloutpretty = new XMLOutputter(Format.getPrettyFormat());
     final static XMLOutputter xmloutraw = new XMLOutputter(Format.getRawFormat());
     //final static Logger LOG = LoggerFactory.getLogger(HandyMigrationUtils.class);
 
@@ -53,8 +50,74 @@ public class HandyMigrationUtils {
 
         //deleteCategories(CATEGORYKEYS);
         //getListOfAllContenttypesWithContentForTopCategory(1298);
-        testWhitespaceBugRelatedToCMS2313();
+        //testWhitespaceBugRelatedToCMS2313();
+        testDraftsVersionsMigration();
     }
+
+    private static void testDraftsVersionsMigration() throws Exception{
+        GetContentParams getContentParams = new GetContentParams();
+        getContentParams.contentKeys = new int[]{9520};
+        getContentParams.includeData=true;
+        getContentParams.includeOfflineContent = true;
+        getContentParams.includeVersionsInfo = true;
+        Document doc = client.getContent(getContentParams);
+        xmloutraw.setFormat(Format.getPrettyFormat());
+        //xmloutraw.output(doc, System.out);
+
+        CreateContentParams createContentParams = new CreateContentParams();
+        createContentParams.categoryKey = 3943;
+        createContentParams.status = ((Attribute)XPath.selectSingleNode(doc, "contents/content/@status")).getIntValue();
+        createContentParams.publishFrom = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH).parse(((Attribute) XPath.selectSingleNode(doc, "contents/content/@publishfrom")).getValue());
+        createContentParams.changeComment = "Create current content";
+        ContentDataInput createContentDataInput = new ContentDataInput("HB-artikkel");
+        createContentDataInput.add(new TextInput("title", ((Element)XPath.selectSingleNode(doc,"contents/content/title")).getValue()));
+        createContentDataInput.add(new HtmlAreaInput("body-text","<h1>Original content</h1>"));
+        createContentParams.contentData = createContentDataInput;
+
+        int migratedContentKey = client.createContent(createContentParams);
+
+        List<Element> versions = XPath.selectNodes(doc, "contents/content/versions/version");
+        List<Integer> versionKeys = new ArrayList<>();
+        UpdateContentParams updateContentParams = new UpdateContentParams();
+        updateContentParams.createNewVersion = true;
+        updateContentParams.setAsCurrentVersion = false;
+        updateContentParams.updateStrategy = ContentDataInputUpdateStrategy.REPLACE_ALL;
+        updateContentParams.contentKey = migratedContentKey;
+        for (Element version : versions){
+            ContentDataInput updateContentDataInput = new ContentDataInput("HB-artikkel");
+            Integer versionKey = Integer.parseInt(version.getAttributeValue("key"));
+            Document versionDoc =  getVersionDoc(versionKey);
+            xmloutraw.output(versionDoc, System.out);
+            versionKeys.add(versionKey);
+            updateContentParams.status = Integer.parseInt(version.getAttributeValue("status-key"));
+            updateContentParams.changeComment = version.getChildText("comment");
+            Date publishFromDate = null;
+            try {
+                publishFromDate = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH).parse(((Attribute) XPath.selectSingleNode(versionDoc, "contents/content/@publishfrom")).getValue());
+            } catch (Exception e) {
+            }
+            updateContentParams.publishFrom = publishFromDate;
+
+            updateContentDataInput.add(new TextInput("title", version.getChildText("title")));
+            updateContentDataInput.add(new HtmlAreaInput("body-text","<h1>Version "+ version.getAttributeValue("key") +"</h1>"));
+            updateContentParams.contentData = updateContentDataInput;
+            System.out.println("Create version");
+            client.updateContent(updateContentParams);
+        }
+    }
+
+    private static Document getVersionDoc(Integer versionKey){
+        GetContentVersionsParams getContentVersionsParams = new GetContentVersionsParams();
+        getContentVersionsParams.contentVersionKeys = new int[]{versionKey};
+        getContentVersionsParams.contentRequiredToBeOnline = false;
+        return client.getContentVersions(getContentVersionsParams);
+        /*
+        int[] versionKeysP = new int[versionKeys.size()];
+        for (int i=0;i<versionKeys.size();i++){versionKeysP[i] = versionKeys.get(i);}
+
+        */
+    }
+
 
     private static void testWhitespaceBugRelatedToCMS2313() throws Exception{
 

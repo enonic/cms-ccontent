@@ -62,8 +62,6 @@ public class CopyContentController extends HttpController {
     int fileCopyProgressCounter = 0;
     boolean abortCopy = false;
 
-    XMLOutputter xmlOutputter = new XMLOutputter(Format.getPrettyFormat());
-
     @Autowired
     PluginEnvironment pluginEnvironment;
 
@@ -400,14 +398,6 @@ public class CopyContentController extends HttpController {
         }
 
         Document resultDoc = client.getContentByQuery(getContentByQueryParams);
-        //Helper.prettyPrint(resultDoc);
-
-        /*if (resultDoc == null || XPath.selectSingleNode(resultDoc, "contents/content") == null) {
-            ResponseMessage.addWarningMessage("Contenttype " + contenttypeName);
-            return null;
-        }else{
-
-        }*/
         try {
             Integer key = ((Attribute) XPath.selectSingleNode(resultDoc, "contents/content/@contenttypekey")).getIntValue();
             String name = ((Attribute) XPath.selectSingleNode(resultDoc, "contents/content/@contenttype")).getValue();
@@ -1304,7 +1294,6 @@ public class CopyContentController extends HttpController {
         try {
             ResponseMessage.addInfoMessage("Check if user exists: " + qName);
             userDoc = targetserverClient.getUser(getUserParams);
-            //xmlOutputter.output(userDoc, System.out);
         }catch (Exception e){
             ResponseMessage.addErrorMessage("User does not exist, impersonation is not allowed for \" + qName");
             LOG.error("User does not exist, impersonation is not allowed for \" + qName",e);
