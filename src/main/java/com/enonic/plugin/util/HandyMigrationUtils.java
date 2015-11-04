@@ -51,7 +51,8 @@ public class HandyMigrationUtils {
         //deleteCategories(CATEGORYKEYS);
         //getListOfAllContenttypesWithContentForTopCategory(1298);
         //testWhitespaceBugRelatedToCMS2313();
-        testDraftsVersionsMigration();
+        //testDraftsVersionsMigration();
+
     }
 
     private static void testDraftsVersionsMigration() throws Exception{
@@ -68,6 +69,7 @@ public class HandyMigrationUtils {
         createContentParams.categoryKey = 3943;
         createContentParams.status = ((Attribute)XPath.selectSingleNode(doc, "contents/content/@status")).getIntValue();
         createContentParams.publishFrom = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH).parse(((Attribute) XPath.selectSingleNode(doc, "contents/content/@publishfrom")).getValue());
+        createContentParams.publishTo = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH).parse(((Attribute) XPath.selectSingleNode(doc, "contents/content/@publishto")).getValue());
         createContentParams.changeComment = "Create current content";
         ContentDataInput createContentDataInput = new ContentDataInput("HB-artikkel");
         createContentDataInput.add(new TextInput("title", ((Element)XPath.selectSingleNode(doc,"contents/content/title")).getValue()));
@@ -76,7 +78,7 @@ public class HandyMigrationUtils {
 
         int migratedContentKey = client.createContent(createContentParams);
 
-        List<Element> versions = XPath.selectNodes(doc, "contents/content/versions/version");
+        /*List<Element> versions = XPath.selectNodes(doc, "contents/content/versions/version");
         List<Integer> versionKeys = new ArrayList<>();
         UpdateContentParams updateContentParams = new UpdateContentParams();
         updateContentParams.createNewVersion = true;
@@ -87,7 +89,7 @@ public class HandyMigrationUtils {
             ContentDataInput updateContentDataInput = new ContentDataInput("HB-artikkel");
             Integer versionKey = Integer.parseInt(version.getAttributeValue("key"));
             Document versionDoc =  getVersionDoc(versionKey);
-            xmloutraw.output(versionDoc, System.out);
+            //xmloutraw.output(versionDoc, System.out);
             versionKeys.add(versionKey);
             updateContentParams.status = Integer.parseInt(version.getAttributeValue("status-key"));
             updateContentParams.changeComment = version.getChildText("comment");
@@ -104,6 +106,7 @@ public class HandyMigrationUtils {
             System.out.println("Create version");
             client.updateContent(updateContentParams);
         }
+        */
     }
 
     private static Document getVersionDoc(Integer versionKey){
