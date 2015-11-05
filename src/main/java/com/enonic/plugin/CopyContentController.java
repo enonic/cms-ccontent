@@ -10,6 +10,7 @@ import com.enonic.cms.api.client.model.content.file.*;
 import com.enonic.cms.api.client.model.content.image.*;
 import com.enonic.cms.api.plugin.PluginEnvironment;
 import com.enonic.cms.api.plugin.ext.http.HttpController;
+import com.enonic.plugin.util.Helper;
 import com.enonic.plugin.util.ResponseMessage;
 import com.enonic.plugin.view.TemplateEngineProvider;
 import com.google.common.base.Strings;
@@ -29,10 +30,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 import org.thymeleaf.context.WebContext;
+import org.w3c.dom.Attr;
 
 import javax.net.ssl.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.security.KeyManagementException;
@@ -47,6 +50,7 @@ public class CopyContentController extends HttpController {
 
     HashMap<Contenttype, Contenttype> contenttypeMap = new HashMap<Contenttype, Contenttype>();
     List<Contenttype> sourceContenttypes = new ArrayList<Contenttype>();
+    HashMap<String, Element> importConfigs = new HashMap<String, Element>();
 
     boolean overwriteWhenExistingMigratedContentIsModified = false;
 
@@ -280,6 +284,9 @@ public class CopyContentController extends HttpController {
     public void setupContenttypes(WebContext context) throws Exception {
         Integer sourceCategoryKey = sourceCategory.getKey();
         RemoteClient remoteClient = getSourceserverClient();
+
+        //Clear cached import configurations
+        importConfigs.clear();
 
         Enumeration<String> parameterNames = pluginEnvironment.getCurrentRequest().getParameterNames();
         while (parameterNames.hasMoreElements()) {
@@ -716,7 +723,6 @@ public class CopyContentController extends HttpController {
 
         Document contentInCategory = sourceserverClient.getContentByCategory(getContentByCategoryParams);
 
-
         if (hasNoContent(contentInCategory)) return;
 
         Integer sourceContenttypeKey;
@@ -778,10 +784,6 @@ public class CopyContentController extends HttpController {
             return;
         }
 
-        if (includeVersionsAndDrafts) {
-            createVersionsAndDrafts(migratedContent);
-        }
-
         Content sourceContent = new Content();
         sourceContent.parseContent(migratedContent.getSourceContentElement());
 
@@ -807,6 +809,7 @@ public class CopyContentController extends HttpController {
         RemoteClient sourceserverClient = getSourceserverClient();
 
         Element importConfig = getImportConfig(migratedContent);
+
 
         if (importConfig == null) {
             return;
@@ -907,20 +910,24 @@ public class CopyContentController extends HttpController {
         }
 
         updateContentParams.contentData = getMigratedContentData(migratedContent);
+        updateMigratedCustomContentWithImpersonation(sourceContent, updateContentParams);
+    }
 
+    private void updateMigratedCustomContentWithImpersonation(Content sourceContent, UpdateContentParams updateContentParams) {
+
+        RemoteClient targetserverClient = getTargetserverClient();
         try {
-            if (isImpersonationAllowed(sourceContent.getModifierQN(), targetserverClient)) {
-                targetserverClient.impersonate("#" + sourceContent.getModifierKey());
-                ResponseMessage.addInfoMessage("Impersonating #" + sourceContent.getModifierKey() + " (" + sourceContent.getModifierQN() + ")");
+            if (isImpersonationAllowed(sourceContent.getOwnerQN(), targetserverClient)) {
+                targetserverClient.impersonate("#" + sourceContent.getOwnerKey());
+                ResponseMessage.addInfoMessage("Impersonating #" + sourceContent.getOwnerKey() + " (" + sourceContent.getOwnerQN() + ")");
             }
         } catch (Exception e) {
-            ResponseMessage.addErrorMessage("Error when impersonating src modifier " + sourceContent.getModifierKey());
-            LOG.error("Error when impersonating src modifier", e);
+            ResponseMessage.addErrorMessage("Error when impersonating src owner " + sourceContent.getOwnerKey());
+            LOG.error("Error when impersonating src owner", e);
         }
 
-        targetserverClient.updateContent(updateContentParams);
+        Integer contentVersionKey = targetserverClient.updateContent(updateContentParams);
         targetserverClient.removeImpersonation();
-        LOG.info("Content updated, publishdate is " + updateContentParams.publishFrom);
     }
 
     private ContentDataInput getMigratedContentData(MigratedContent migratedContent) {
@@ -1036,10 +1043,32 @@ public class CopyContentController extends HttpController {
         RemoteClient targetserverClient = getTargetserverClient();
         LOG.info("Content does not exist, create it and create a migrated-content entry");
 
+        Integer targetContentKey = null;
+        if (includeVersionsAndDrafts){
+            targetContentKey = createNewMigratedContentWithVersionsAndDrafts(migratedContent, sourceContent);
+        }else{
+            targetContentKey = createNewMigratedContent(migratedContent, sourceContent);
+        }
+
+
+
+        migratedContent.setTitle(sourceContent.getDisplayName());
+        migratedContent.setType("content");
+        migratedContent.setSourceContentKey(sourceContent.getKey());
+        migratedContent.setTargetContentKey(targetContentKey);
+        migratedContent.setSourceContenttype(migratedContent.getSourceContenttype());
+        migratedContent.setTargetContenttype(migratedContent.getTargetContenttype());
+        migratedContent.setSourceContent(sourceContent);
+        createMigratedContent(migratedContent);
+    }
+
+    private Integer createNewMigratedContent(MigratedContent migratedContent, Content sourceContent) {
+        RemoteClient targetserverClient = getTargetserverClient();
         CreateContentParams createContentParams = new CreateContentParams();
         createContentParams.categoryKey = migratedContent.getTargetCategoryKey();
         createContentParams.changeComment = "ccontent plugin copied content with key = " + migratedContent.getSourceContentKey();
         createContentParams.contentData = getMigratedContentData(migratedContent);
+
         if (sourceContent.getStatus() != null) {
             createContentParams.status = sourceContent.getStatus();
         }
@@ -1050,6 +1079,11 @@ public class CopyContentController extends HttpController {
             createContentParams.publishTo = sourceContent.getPublishto();
         }
 
+        return createContentWithImpersonation(sourceContent, createContentParams);
+    }
+
+    private Integer createContentWithImpersonation(Content sourceContent, CreateContentParams createContentParams) {
+        RemoteClient targetserverClient = getTargetserverClient();
         try {
             if (isImpersonationAllowed(sourceContent.getOwnerQN(), targetserverClient)) {
                 targetserverClient.impersonate("#" + sourceContent.getOwnerKey());
@@ -1062,19 +1096,124 @@ public class CopyContentController extends HttpController {
 
         Integer targetContentKey = targetserverClient.createContent(createContentParams);
         targetserverClient.removeImpersonation();
+        return targetContentKey;
+    }
 
-        migratedContent.setTitle(sourceContent.getDisplayName());
-        migratedContent.setType("content");
-        migratedContent.setSourceContentKey(sourceContent.getKey());
-        migratedContent.setTargetContentKey(targetContentKey);
-        migratedContent.setSourceContenttype(migratedContent.getSourceContenttype());
-        migratedContent.setTargetContenttype(migratedContent.getTargetContenttype());
-        migratedContent.setSourceContent(sourceContent);
-        createMigratedContent(migratedContent);
+    private Integer createNewMigratedContentWithVersionsAndDrafts(MigratedContent migratedContent, Content sourceContent) {
+        RemoteClient sourceServerClient = getSourceserverClient();
+        RemoteClient targetServerClient = getTargetserverClient();
+
+        Integer newContentKey = null;
+
+        List<Element> versions = null;
+        try {
+            versions = XPath.selectNodes(migratedContent.getSourceContentElement(), "versions/version");
+            List<Attribute> versionKeysEl = XPath.selectNodes(migratedContent.getSourceContentElement(), "versions/version/@key");
+            Iterator<Attribute> versionKeysElIt = versionKeysEl.iterator();
+            int[] versionKeys = new int[versionKeysEl.size()];
+            for (int i = 0; i<versionKeysEl.size(); i++){
+                versionKeys[i] = versionKeysEl.get(i).getIntValue();
+            }
+            Document versionsDoc = null;
+            versionsDoc = getVersionDoc(versionKeys);
+
+            Iterator<Element> versionsElIt = versions.iterator();
+            while (versionsElIt.hasNext()){
+                Element versionEl = versionsElIt.next();
+                if (newContentKey==null){
+                    Content firstVersionContent = new Content();
+                    firstVersionContent.parseContent(versionEl);
+                    migratedContent.setSourceContent(firstVersionContent);
+                    migratedContent.setSourceContentElement(versionEl);
+
+                    CreateContentParams createContentParams = new CreateContentParams();
+                    createContentParams.categoryKey = migratedContent.getTargetCategoryKey();
+                    createContentParams.changeComment = versionEl.getChildText("comment");
+                    createContentParams.status = versionEl.getAttribute("status-key").getIntValue();
+                    createContentParams.contentData = getMigratedContentData(migratedContent);
+                    if (firstVersionContent.getPublishfrom()!=null){
+                        createContentParams.publishFrom = firstVersionContent.getPublishfrom();
+                    }
+                    if (firstVersionContent.getPublishto()!=null){
+                        createContentParams.publishTo = firstVersionContent.getPublishto();
+                    }
+                    newContentKey = createContentWithImpersonation(firstVersionContent, createContentParams);
+                }else{
+                    Content newVersionContent = new Content();
+                    newVersionContent.parseContent(versionEl);
+                    migratedContent.setSourceContent(newVersionContent);
+                    migratedContent.setSourceContentElement(versionEl);
+                    UpdateContentParams updateContentParams = new UpdateContentParams();
+                    updateContentParams.contentData = getMigratedContentData(migratedContent);
+                    updateContentParams.changeComment = versionEl.getChildText("comment");
+                    updateContentParams.status = versionEl.getAttribute("status-key").getIntValue();
+                    updateContentParams.createNewVersion = true;
+                    updateContentParams.updateStrategy = ContentDataInputUpdateStrategy.REPLACE_ALL;
+                    updateContentParams.setAsCurrentVersion = true;
+
+                    if (newVersionContent.getPublishfrom()!=null){
+                        updateContentParams.publishFrom = newVersionContent.getPublishfrom();
+                    }
+                    if (newVersionContent.getPublishto()!=null){
+                        updateContentParams.publishTo = newVersionContent.getPublishto();
+                    }
+                    try {
+                        updateMigratedCustomContentWithImpersonation(newVersionContent, updateContentParams);
+                    }catch (Exception e){
+                        ResponseMessage.addWarningMessage("Exception when opdating migrated content version");
+                    }
+                }
+
+            }
+
+            try {
+                Helper.prettyPrint(versionsDoc);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+
+            /*for (Element version : versions){
+                Integer versionKey = Integer.parseInt(version.getAttributeValue("key"));
+                Integer statusKey = Integer.parseInt(version.getAttributeValue("status-key"));
+                String changeComment = version.getChildText("comment");
+                int pversionKeys[] = versionKeys.toArray(Integer[] a);
+                Document versionsDoc = getVersionDoc(versionKeys.toArray(Integer[]));
+                Document versionDoc =  getVersionDoc(versionKey);
+
+                if (versionDoc==null){
+                    continue;
+                }
+
+                Content contentVersion = new Content();
+                Element contentVersionEl = (Element)XPath.selectSingleNode(versionDoc,"contents/content");
+                contentVersion.parseContent(contentVersionEl);
+                migratedContent.setSourceContentElement(contentVersionEl);
+                migratedContent.setSourceContent(contentVersion);
+                createContentParams.changeComment = changeComment;
+                newContentKey = createContentWithImpersonation(sourceContent, createContentParams);
+            }*/
+        } catch (JDOMException e) {
+            ResponseMessage.addWarningMessage("could not get versions for content");
+        }
+        return newContentKey;
+    }
+
+    private Document getVersionDoc(int[] versionKeys){
+        RemoteClient sourceserverClient = getSourceserverClient();
+        GetContentVersionsParams getContentVersionsParams = new GetContentVersionsParams();
+        getContentVersionsParams.contentVersionKeys = versionKeys;
+        getContentVersionsParams.contentRequiredToBeOnline = false;
+        getContentVersionsParams.childrenLevel=0;
+        return sourceserverClient.getContentVersions(getContentVersionsParams);
     }
 
     //Fetch the import config named 'ccontent' or 'ccontent-{source-contenttype}'
     private Element getImportConfig(MigratedContent migratedContent) {
+        if (importConfigs.containsKey(migratedContent.getTargetContenttype().getName())){
+            return importConfigs.get(migratedContent.getTargetContenttype().getName());
+        }
+
         Element importConfig = null;
         try {
             importConfig = (Element) XPath.selectSingleNode(migratedContent.getTargetContenttypeDoc(),
@@ -1089,6 +1228,7 @@ public class CopyContentController extends HttpController {
         } catch (Exception e) {
             ResponseMessage.addErrorMessage("Skipping. No import config for contenttype " + migratedContent.getTargetContenttype().getName());
         }
+        importConfigs.put(migratedContent.getTargetContenttype().getName(), importConfig);
         return importConfig;
     }
 
@@ -1271,8 +1411,8 @@ public class CopyContentController extends HttpController {
             ResponseMessage.addWarningMessage("Contenttypes are not correctly mapped, aborting copy of content");
             return false;
         }
-        ResponseMessage.addInfoMessage("Migrate source contenttype " + migratedContent.getSourceContenttype() + " to target contenttype " + migratedContent.getTargetContenttype().getName());
-        return false;
+        ResponseMessage.addInfoMessage("Migrate source contenttype " + migratedContent.getSourceContenttype().getName() + " to target contenttype " + migratedContent.getTargetContenttype().getName());
+        return true;
     }
 
     private boolean hasNoContent(Document document) throws JDOMException {
