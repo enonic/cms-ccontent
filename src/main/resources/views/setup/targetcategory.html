@@ -26,6 +26,19 @@
         </label>
     </fieldset>
     <fieldset>
+        <legend>Create versions / drafts (experimental)</legend>
+
+        <label for="option-one" class="pure-radio">
+            <input id="option-one" type="radio" name="includeVersionsAndDrafts" value="true" data-th-checked="${includeVersionsAndDrafts==true}"/>
+            Yes
+        </label>
+
+        <label for="option-two" class="pure-radio">
+            <input id="option-two" type="radio" name="includeVersionsAndDrafts" value="false" data-th-checked="${includeVersionsAndDrafts==false}"/>
+            No
+        </label>
+    </fieldset>
+    <fieldset>
         <legend>Purge folder before copy (delete existing subfolders)?</legend>
 
         <label for="option-one" class="pure-radio">

@@ -1,21 +1,35 @@
 package com.enonic.plugin;
 
+import com.enonic.plugin.util.ResponseMessage;
+import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.output.Format;
 import org.jdom.output.XMLOutputter;
 
+import java.util.List;
+
 public class MigratedContent {
 
-    String title;
-    String type;
+    private String title;
+    private String type;
 
-    Integer oldContentKey;
-    Contenttype oldContenttype;
-    Element oldOwnerXml;
-    Element oldModifierXml;
+    //These are used to create the contenttype migrated-content
+    private Integer sourceContentKey;
+    private Contenttype sourceContenttype;
+    private Contenttype targetContenttype;
+    private Integer targetContentKey;
 
-    Contenttype newContenttype;
-    Integer newContentKey;
+    //These are helper fields for when creating the content
+    private Document targetContenttypeDoc;
+    private Document sourceContenttypeDoc;
+    private Element sourceContentElement;
+    private Integer targetCategoryKey;
+    private Integer sourceCategoryKey;
+
+    private Content sourceContent;
+    private List<Element> inputElementMappings;
+    private List<Element> blockGroupElementMappings;
+
 
     public String getTitle() {
         return title;
@@ -33,59 +47,134 @@ public class MigratedContent {
         this.type = type;
     }
 
-    public Integer getOldContentKey() {
-        return oldContentKey;
+    public Integer getSourceContentKey() {
+        return sourceContentKey;
     }
 
-    public void setOldContentKey(Integer oldContentKey) {
-        this.oldContentKey = oldContentKey;
+    public void setSourceContentKey(Integer sourceContentKey) {
+        this.sourceContentKey = sourceContentKey;
     }
 
-    public Contenttype getOldContenttype() {
-        return oldContenttype;
+    public Contenttype getSourceContenttype() {
+        return sourceContenttype;
     }
 
-    public void setOldContenttype(Contenttype oldContenttype) {
-        this.oldContenttype = oldContenttype;
+    public void setSourceContenttype(Contenttype sourceContenttype) {
+        this.sourceContenttype = sourceContenttype;
     }
 
-    public String getOldOwnerXml() {
-        if (oldOwnerXml==null){
+    public String getSourceOwnerXml() {
+        if (sourceContent == null || sourceContent.getOwnerElement() == null){
             return "";
         }
         XMLOutputter xmlOutputter = new XMLOutputter(Format.getPrettyFormat());
-        return xmlOutputter.outputString(oldOwnerXml);
+        return xmlOutputter.outputString(sourceContent.getOwnerElement());
     }
 
-    public void setOldOwnerXml(Element oldOwnerXml) {
-        this.oldOwnerXml = oldOwnerXml;
-    }
-
-    public String getOldModifierXml() {
-        if (oldModifierXml==null){
+    public String getSourceModifierXml() {
+        if (sourceContent == null || sourceContent.getModifierElement() == null){
             return "";
         }
         XMLOutputter xmlOutputter = new XMLOutputter(Format.getPrettyFormat());
-        return xmlOutputter.outputString(oldModifierXml);
+        return xmlOutputter.outputString(sourceContent.getModifierElement());
     }
 
-    public void setOldModifierXml(Element oldModifierXml) {
-        this.oldModifierXml = oldModifierXml;
+    public Contenttype getTargetContenttype() {
+        return targetContenttype;
     }
 
-    public Contenttype getNewContenttype() {
-        return newContenttype;
+    public void setTargetContenttype(Contenttype targetContenttype) {
+        this.targetContenttype = targetContenttype;
     }
 
-    public void setNewContenttype(Contenttype newContenttype) {
-        this.newContenttype = newContenttype;
+    public Integer getTargetContentKey() {
+        return targetContentKey;
     }
 
-    public Integer getNewContentKey() {
-        return newContentKey;
+    public void setTargetContentKey(Integer targetContentKey) {
+        this.targetContentKey = targetContentKey;
     }
 
-    public void setNewContentKey(Integer newContentKey) {
-        this.newContentKey = newContentKey;
+    public boolean isContenttypeMappingOk() {
+        if (getSourceContenttype() == null || getTargetContenttype() == null || getSourceContenttype().getKey() == null || getTargetContenttype().getKey() == null) {
+            return false;
+        }
+        return true;
+    }
+
+    public Document getSourceContenttypeDoc() {
+        return sourceContenttypeDoc;
+    }
+
+    public void setSourceContenttypeDoc(Document sourceContenttypeDoc) {
+        this.sourceContenttypeDoc = sourceContenttypeDoc;
+    }
+
+    public Document getTargetContenttypeDoc() {
+        return targetContenttypeDoc;
+    }
+
+    public void setTargetContenttypeDoc(Document targetContenttypeDoc) {
+        this.targetContenttypeDoc = targetContenttypeDoc;
+    }
+
+    public boolean isSourceAndTargetContenttypeDocOk() {
+        if (getSourceContenttypeDoc() == null) {
+            ResponseMessage.addErrorMessage("Source contenttype doc is null, aborting");
+            return false;
+        }
+        if (getTargetContenttypeDoc() == null) {
+            ResponseMessage.addErrorMessage("Target contenttype doc is null, aborting");
+            return false;
+        }
+        return true;
+    }
+
+    public Element getSourceContentElement() {
+        return sourceContentElement;
+    }
+
+    public void setSourceContentElement(Element sourceContentElement) {
+        this.sourceContentElement = sourceContentElement;
+    }
+
+    public Integer getTargetCategoryKey() {
+        return targetCategoryKey;
+    }
+
+    public void setTargetCategoryKey(Integer targetCategoryKey) {
+        this.targetCategoryKey = targetCategoryKey;
+    }
+
+    public Integer getSourceCategoryKey() {
+        return sourceCategoryKey;
+    }
+
+    public void setSourceCategoryKey(Integer sourceCategoryKey) {
+        this.sourceCategoryKey = sourceCategoryKey;
+    }
+
+    public Content getSourceContent() {
+        return sourceContent;
+    }
+
+    public void setSourceContent(Content sourceContent) {
+        this.sourceContent = sourceContent;
+    }
+
+    public void setInputElementMappings(List<Element> inputElementMappings) {
+        this.inputElementMappings = inputElementMappings;
+    }
+
+    public void setBlockGroupElementMappings(List<Element> blockGroupElementMappings) {
+        this.blockGroupElementMappings = blockGroupElementMappings;
+    }
+
+    public List<Element> getInputElementMappings() {
+        return inputElementMappings;
+    }
+
+    public List<Element> getBlockGroupElementMappings() {
+        return blockGroupElementMappings;
     }
 }
