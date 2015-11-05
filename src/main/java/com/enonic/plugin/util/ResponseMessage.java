@@ -11,6 +11,7 @@ public class ResponseMessage {
 
     static List<ResponseMessage> responseMessages = new ArrayList<ResponseMessage>();
     static Logger LOG = LoggerFactory.getLogger(ResponseMessage.class);
+    static List<String> uniqueMessage = new ArrayList<String>();
 
     String messageType;
     String message;
@@ -41,6 +42,13 @@ public class ResponseMessage {
         addMessage(message, "error");
     }
 
+    public static void addUniqueMessage(String message, String messageType, String uniqueKey){
+        if (!uniqueMessage.contains(uniqueKey)){
+            uniqueMessage.add(uniqueKey);
+            addMessage(message, messageType);
+        }
+    }
+
     public static void addMessage(String message, String messageType) {
         if ("error".equals(messageType.toLowerCase())) {
             LOG.error(message);
@@ -63,5 +71,6 @@ public class ResponseMessage {
 
     public static void clearResponseMessages() {
         responseMessages.clear();
+        uniqueMessage.clear();
     }
 }

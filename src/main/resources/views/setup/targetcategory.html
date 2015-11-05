@@ -13,6 +13,19 @@
 
      </fieldset>
     <fieldset>
+        <legend>Update content?</legend>
+
+        <label for="option-one" class="pure-radio">
+            <input id="option-one" type="radio" name="updateContent" value="true" data-th-checked="${updateContent==true}"/>
+            Yes
+        </label>
+
+        <label for="option-two" class="pure-radio">
+            <input id="option-two" type="radio" name="updateContent" value="false" data-th-checked="${updateContent==false}"/>
+            No
+        </label>
+    </fieldset>
+    <fieldset>
         <legend>Purge folder before copy (delete existing subfolders)?</legend>
 
         <label for="option-one" class="pure-radio">

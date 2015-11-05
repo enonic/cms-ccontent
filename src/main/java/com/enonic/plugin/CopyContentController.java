@@ -21,8 +21,6 @@ import org.codehaus.jackson.map.annotate.JsonSerialize;
 import org.jdom.Attribute;
 import org.jdom.Document;
 import org.jdom.Element;
-import org.jdom.output.Format;
-import org.jdom.output.XMLOutputter;
 import org.jdom.xpath.XPath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,12 +49,14 @@ public class CopyContentController extends HttpController {
     List<Contenttype> sourceContenttypes = new ArrayList<Contenttype>();
 
     boolean overwriteWhenExistingMigratedContentIsModified = false;
+
     Category sourceCategory = null;
     Category targetCategory = null;
 
     boolean purgeMigratedContentBeforeCopy = false;
     boolean purgeTargetFolderBeforeCopy = false;
     boolean copyContent = true;
+    boolean updateContent = true;
 
     boolean readyForCopying = false;
     int fileCopyProgressCounter = 0;
@@ -84,6 +84,7 @@ public class CopyContentController extends HttpController {
 
     private void setupAuthentication() {
 
+        HttpServletRequest req = pluginEnvironment.getCurrentRequest();
         String cmd = pluginEnvironment.getCurrentRequest().getParameter("cmd");
 
         if (!"setupAuthentication".equalsIgnoreCase(cmd)) {
@@ -132,6 +133,7 @@ public class CopyContentController extends HttpController {
             ResponseMessage.addInfoMessage("Authentication for remote client successful");
         } catch (Exception e) {
             ResponseMessage.addErrorMessage("Authentication for remote client failed");
+            ResponseMessage.addErrorMessage(e.getMessage());
         }
 
         try {
@@ -141,6 +143,7 @@ public class CopyContentController extends HttpController {
             ResponseMessage.addInfoMessage("Authentication for local client successful");
         } catch (Exception e) {
             ResponseMessage.addErrorMessage("Authentication for local client failed");
+            ResponseMessage.addErrorMessage(e.getMessage());
         }
     }
 
@@ -255,8 +258,6 @@ public class CopyContentController extends HttpController {
             this.copyContent = Boolean.parseBoolean(pluginEnvironment.getCurrentRequest().getParameter("copyContent"));
             pluginEnvironment.setSharedObject("context_copyContent", copyContent);
         }
-
-
     }
 
     public void setupSourcecategory(WebContext context) throws Exception {
@@ -405,7 +406,7 @@ public class CopyContentController extends HttpController {
             result.setKey(key);
             result.setName(name);
         } catch (NullPointerException e) {
-            ResponseMessage.addWarningMessage("No content exists of contenttype name:" + contenttypeName + " key:" + contenttypeKey + ". This is a prerequisite for creating a mapping!");
+            ResponseMessage.addUniqueMessage("No content exists of contenttype" + contenttypeName != null ? contenttypeName : "" + " key:" + contenttypeKey + ". This is a prerequisite for creating a mapping!", "warning", "contenttype-without-content-"+contenttypeKey);
         }
 
         return result;
@@ -420,6 +421,11 @@ public class CopyContentController extends HttpController {
             targetCategory = null;
         } else if (targetCategory != null) {
             categoryKey = targetCategory.getKey();
+        }
+
+        if (pluginEnvironment.getCurrentRequest().getParameter("updateContent") != null) {
+            this.updateContent = Boolean.parseBoolean(pluginEnvironment.getCurrentRequest().getParameter("updateContent"));
+            pluginEnvironment.setSharedObject("context_updateContent", updateContent);
         }
 
         if (categoryKey != null) {
@@ -667,7 +673,7 @@ public class CopyContentController extends HttpController {
             targetCategoryKey = Integer.parseInt(((Element) XPath.selectSingleNode(existingCategory, "//newkey")).getValue());
         }
 
-        if (targetContenttype != null && copyContent) {
+        if (targetContenttype != null && copyContent && !abortCopy) {
             ResponseMessage.addInfoMessage("Will copy content for category " + category.getTitle());
             copyContent(category.getKey(), targetCategoryKey);
         } else {
@@ -769,6 +775,7 @@ public class CopyContentController extends HttpController {
             if (abortCopy) {
                 break;
             }
+            fileCopyProgressCounter++;
             String displayName = null;
 
             Element sourceContentModifierEl = null;
@@ -848,40 +855,47 @@ public class CopyContentController extends HttpController {
                 }
 
 
+                //TODO: rewrite this messy code which should handle update / existing migrated content scenarios
                 if (!isImage && !isFile) {
                     List<Element> existingMigratedContents = getExistingContentHandler().getExistingMigratedContents(sourceContentKey, "content");
                     if (existingMigratedContents == null) {
-                        break;
+                        ResponseMessage.addInfoMessage("No existing migrated content for sourceContentKey " + sourceContentKey);
                     }
-                    if (existingMigratedContents.size() == 1) {
-                        ResponseMessage.addInfoMessage(displayName + " is already migrated once");
-                        isAlreadyMigrated = true;
-                    }
-                    if (existingMigratedContents.size() > 1) {
-                        ResponseMessage.addWarningMessage(displayName + " exists in more then one version on target server, something is wrong");
-                        isAlreadyMigrated = true;
-                    }
+                    if (existingMigratedContents!=null){
+                        if (existingMigratedContents.size() == 1) {
+                            ResponseMessage.addInfoMessage(displayName + " is already migrated once");
+                            isAlreadyMigrated = true;
+                        }
+                        if (existingMigratedContents.size() > 1) {
+                            ResponseMessage.addWarningMessage(displayName + " exists in more then one version on target server, something is wrong");
+                            isAlreadyMigrated = true;
+                        }
 
-                    if (isAlreadyMigrated) {
-                        Iterator<Element> migratedElementsIt = existingMigratedContents.iterator();
-                        while (migratedElementsIt.hasNext()) {
-                            Element migratedElement = migratedElementsIt.next();
-                            Element newKeyEl = ((Element) XPath.selectSingleNode(migratedElement, "contentdata/newkey"));
-                            if (newKeyEl != null && newKeyEl.getValue() != null) {
-                                Integer newKey = Integer.parseInt(newKeyEl.getValue());
-                                GetContentParams getContentParams = new GetContentParams();
-                                getContentParams.contentKeys = new int[]{newKey};
-                                getContentParams.includeData = true;
-                                migratedContentDoc = targetserverClient.getContent(getContentParams);
+                        if (isAlreadyMigrated) {
+                            if (!updateContent){
+                                ResponseMessage.addInfoMessage("continuing because content is already migrated and 'updateContent' is " + updateContent);
+                                continue;
+                            }
+                            Iterator<Element> migratedElementsIt = existingMigratedContents.iterator();
+                            while (migratedElementsIt.hasNext()) {
+                                Element migratedElement = migratedElementsIt.next();
+                                Element newKeyEl = ((Element) XPath.selectSingleNode(migratedElement, "contentdata/newkey"));
+                                if (newKeyEl != null && newKeyEl.getValue() != null) {
+                                    Integer newKey = Integer.parseInt(newKeyEl.getValue());
+                                    GetContentParams getContentParams = new GetContentParams();
+                                    getContentParams.contentKeys = new int[]{newKey};
+                                    getContentParams.includeData = true;
+                                    migratedContentDoc = targetserverClient.getContent(getContentParams);
 
 
-                                try{
-                                    Element targetContentModifierEl = (Element) XPath.selectSingleNode(migratedContentDoc, "modifier");
-                                    targetModifierQN = targetContentModifierEl.getAttributeValue("qualified-name");
-                                    targetModifierKey = targetContentModifierEl.getAttributeValue("key");
-                                    targetModifierName = targetContentModifierEl.getChildText("name");
-                                }catch (Exception e){
-                                    ResponseMessage.addWarningMessage("Error while getting modifier for target content");
+                                    try{
+                                        Element targetContentModifierEl = (Element) XPath.selectSingleNode(migratedContentDoc, "modifier");
+                                        targetModifierQN = targetContentModifierEl.getAttributeValue("qualified-name");
+                                        targetModifierKey = targetContentModifierEl.getAttributeValue("key");
+                                        targetModifierName = targetContentModifierEl.getChildText("name");
+                                    }catch (Exception e){
+                                        ResponseMessage.addWarningMessage("Error while getting modifier for target content");
+                                    }
                                 }
                             }
                         }
@@ -1273,7 +1287,6 @@ public class CopyContentController extends HttpController {
                 ResponseMessage.addErrorMessage("Exception!" + e.getMessage());
                 LOG.error("Error when copying binary content!!!!! From sourcecategorykey = {}, {}", sourceCategoryKey, e);
             }
-            fileCopyProgressCounter++;
         }
     }
 
@@ -1296,7 +1309,6 @@ public class CopyContentController extends HttpController {
             userDoc = targetserverClient.getUser(getUserParams);
         }catch (Exception e){
             ResponseMessage.addErrorMessage("User does not exist, impersonation is not allowed for \" + qName");
-            LOG.error("User does not exist, impersonation is not allowed for \" + qName",e);
             return false;
         }
         if (userDoc!=null && userDoc.hasRootElement()){

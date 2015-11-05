@@ -2,21 +2,21 @@ package com.enonic.plugin.util;
 
 import com.enonic.cms.api.client.ClientException;
 import com.enonic.cms.api.client.ClientFactory;
+import com.enonic.cms.api.client.LocalClient;
 import com.enonic.cms.api.client.RemoteClient;
 import com.enonic.cms.api.client.model.*;
 import com.enonic.cms.api.client.model.content.ContentDataInput;
-import com.enonic.cms.api.client.model.content.ContentStatus;
 import com.enonic.cms.api.client.model.content.HtmlAreaInput;
 import com.enonic.cms.api.client.model.content.TextInput;
-import org.jdom.*;
 import org.jdom.Attribute;
+import org.jdom.Document;
+import org.jdom.Element;
+import org.jdom.JDOMException;
 import org.jdom.output.Format;
 import org.jdom.output.XMLOutputter;
 import org.jdom.xpath.XPath;
 
 import javax.net.ssl.*;
-import javax.xml.stream.events.*;
-import javax.xml.stream.events.ProcessingInstruction;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -30,7 +30,7 @@ import java.util.*;
 * */
 public class HandyMigrationUtils {
 
-    final static RemoteClient client = ClientFactory.getRemoteClient("http://localhost:8080/rpc/bin");
+    final static RemoteClient remoteClient = ClientFactory.getRemoteClient("http://localhost:8080/rpc/bin");
     final static XMLOutputter xmloutraw = new XMLOutputter(Format.getRawFormat());
     //final static Logger LOG = LoggerFactory.getLogger(HandyMigrationUtils.class);
 
@@ -45,7 +45,7 @@ public class HandyMigrationUtils {
 
 
     public static void main(String args[]) throws Exception {
-        String userName = client.login("admin", "password");
+        String userName = remoteClient.login("admin", "password");
         System.out.println("Logged in " + userName);
 
         //deleteCategories(CATEGORYKEYS);
@@ -61,7 +61,7 @@ public class HandyMigrationUtils {
         getContentParams.includeData=true;
         getContentParams.includeOfflineContent = true;
         getContentParams.includeVersionsInfo = true;
-        Document doc = client.getContent(getContentParams);
+        Document doc = remoteClient.getContent(getContentParams);
         xmloutraw.setFormat(Format.getPrettyFormat());
         //xmloutraw.output(doc, System.out);
 
@@ -76,7 +76,7 @@ public class HandyMigrationUtils {
         createContentDataInput.add(new HtmlAreaInput("body-text","<h1>Original content</h1>"));
         createContentParams.contentData = createContentDataInput;
 
-        int migratedContentKey = client.createContent(createContentParams);
+        int migratedContentKey = remoteClient.createContent(createContentParams);
 
         /*List<Element> versions = XPath.selectNodes(doc, "contents/content/versions/version");
         List<Integer> versionKeys = new ArrayList<>();
@@ -104,7 +104,7 @@ public class HandyMigrationUtils {
             updateContentDataInput.add(new HtmlAreaInput("body-text","<h1>Version "+ version.getAttributeValue("key") +"</h1>"));
             updateContentParams.contentData = updateContentDataInput;
             System.out.println("Create version");
-            client.updateContent(updateContentParams);
+            remoteClient.updateContent(updateContentParams);
         }
         */
     }
@@ -113,7 +113,7 @@ public class HandyMigrationUtils {
         GetContentVersionsParams getContentVersionsParams = new GetContentVersionsParams();
         getContentVersionsParams.contentVersionKeys = new int[]{versionKey};
         getContentVersionsParams.contentRequiredToBeOnline = false;
-        return client.getContentVersions(getContentVersionsParams);
+        return remoteClient.getContentVersions(getContentVersionsParams);
         /*
         int[] versionKeysP = new int[versionKeys.size()];
         for (int i=0;i<versionKeys.size();i++){versionKeysP[i] = versionKeys.get(i);}
@@ -128,7 +128,7 @@ public class HandyMigrationUtils {
         GetContentParams getContentParams = new GetContentParams();
         getContentParams.contentKeys = new int[]{196499};
         getContentParams.includeData=true;
-        Document doc = client.getContent(getContentParams);
+        Document doc = remoteClient.getContent(getContentParams);
 
         //Isolate the problematic html
         Element problematicHtmlEl = (Element)XPath.selectSingleNode(doc, "contents/content/contentdata//subtheme[title='Fremgangsmåte']/text");
@@ -144,7 +144,7 @@ public class HandyMigrationUtils {
 
         contentDataInput.add(new HtmlAreaInput("description",xmloutraw.outputString(problematicHtmlEl.getContent())));
         createContentParams.contentData = contentDataInput;
-        client.createContent(createContentParams);
+        remoteClient.createContent(createContentParams);
     }
 
     private static void getListOfAllContenttypesWithContentForTopCategory(Integer categoryKey) throws IOException, JDOMException {
@@ -177,7 +177,7 @@ public class HandyMigrationUtils {
             getContentByCategoryParams.levels = 0;
             getContentByCategoryParams.query = "contenttypekey = " + contenttypekey;
             getContentByCategoryParams.categoryKeys = new int[]{334};
-            Document visContentDoc = client.getContentByCategory(getContentByCategoryParams);
+            Document visContentDoc = remoteClient.getContentByCategory(getContentByCategoryParams);
             Attribute contenttypeEl = (Attribute) XPath.selectSingleNode(visContentDoc, "contents/content/@contenttype");
             //LOG.info(contenttypeEl!=null?contenttypeEl.getValue():"No contenttype");
         }
@@ -191,7 +191,7 @@ public class HandyMigrationUtils {
         for (int key : categoryKeys) {
             deleteCategoryParams.key = key;
             try {
-                client.deleteCategory(deleteCategoryParams);
+                remoteClient.deleteCategory(deleteCategoryParams);
             } catch (ClientException e) {
                 System.out.println(e);
             }
@@ -203,7 +203,7 @@ public class HandyMigrationUtils {
         GetCategoriesParams getCategoriesParams = new GetCategoriesParams();
         getCategoriesParams.categoryKey = categoryKey;
         getCategoriesParams.levels = 0;
-        return client.getCategories(getCategoriesParams);
+        return remoteClient.getCategories(getCategoriesParams);
     }
 
     private static void printDoc(Document doc) throws Exception {
