@@ -848,8 +848,10 @@ public class CopyContentController extends HttpController {
             targetContent = getTargetContent(existingMigratedContent);
         }
 
-        if (targetContent != null && updateContent) {
-            updateMigratedCustomContent(migratedContent, sourceContent, targetContent);
+        if (targetContent != null) {
+            if (updateContent){
+                updateMigratedCustomContent(migratedContent, sourceContent, targetContent);
+            }
         } else {
             createNewMigratedCustomContent(migratedContent, sourceContent);
         }
