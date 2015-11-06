@@ -69,8 +69,8 @@ public class MappingObjectHolder {
             return "\nsourceContentType:"+sourceContenttype.getName()+
                     "\ntargetContentType:"+targetContenttype.getName()+
                     "\ninputMapping.src:"+inputMapping.getAttributeValue("src")+
-                    "\ninputMapping.dest:"+inputMapping.getAttributeValue("dest")+
-                    "\ncontentInputElement.getValue():"+contentInputElement.getValue();
+                    "\ninputMapping.dest:"+inputMapping.getAttributeValue("dest")
+                    +"\ncontentInputElement.getValue():"+((!Strings.isNullOrEmpty(contentInputElement.getValue()))?contentInputElement.getValue().substring(0,42):"");
         }catch (Exception e){
             return "MappingObjectHolder.toString(): Values not initiated";
         }
