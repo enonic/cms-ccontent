@@ -44,6 +44,7 @@ public class Content {
             modifierQN = modifierElement.getAttributeValue("qualified-name");
             modifierKey = modifierElement.getAttributeValue("key");
             modifierName = modifierElement.getChildText("name");
+            modifierIsDeleted = modifierElement.getAttribute("deleted").getBooleanValue();
         }catch (Exception e){
             ResponseMessage.addWarningMessage("Error while getting modifier for original content");
         }
@@ -53,6 +54,7 @@ public class Content {
             ownerQN = ownerElement.getAttributeValue("qualified-name");
             ownerKey = ownerElement.getAttributeValue("key");
             ownerName = ownerElement.getChildText("name");
+            ownerIsDeleted = ownerElement.getAttribute("deleted").getBooleanValue();
         }catch (Exception e){
             ResponseMessage.addWarningMessage("Error while getting owner for original content");
         }
@@ -75,10 +77,12 @@ public class Content {
     private String modifierQN = null;
     private String modifierName = null;
     private String modifierKey = null;
+    private Boolean modifierIsDeleted = null;
 
     private String ownerKey = null;
     private String ownerQN = null;
     private String ownerName = null;
+    private Boolean ownerIsDeleted = null;
 
     public String getDisplayName() {
         return displayName;
@@ -214,5 +218,21 @@ public class Content {
 
     public void setOwnerName(String ownerName) {
         this.ownerName = ownerName;
+    }
+
+    public Boolean isModifierDeleted() {
+        return modifierIsDeleted==null?true:modifierIsDeleted;
+    }
+
+    public void setModifierIsDeleted(Boolean modifierIsDeleted) {
+        this.modifierIsDeleted = modifierIsDeleted;
+    }
+
+    public Boolean getOwnerIsDeleted() {
+        return ownerIsDeleted==null?true:ownerIsDeleted;
+    }
+
+    public void setOwnerIsDeleted(Boolean ownerIsDeleted) {
+        this.ownerIsDeleted = ownerIsDeleted;
     }
 }

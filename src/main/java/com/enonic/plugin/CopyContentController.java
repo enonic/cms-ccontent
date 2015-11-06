@@ -10,7 +10,6 @@ import com.enonic.cms.api.client.model.content.file.*;
 import com.enonic.cms.api.client.model.content.image.*;
 import com.enonic.cms.api.plugin.PluginEnvironment;
 import com.enonic.cms.api.plugin.ext.http.HttpController;
-import com.enonic.plugin.util.Helper;
 import com.enonic.plugin.util.ResponseMessage;
 import com.enonic.plugin.view.TemplateEngineProvider;
 import com.google.common.base.Strings;
@@ -30,12 +29,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 import org.thymeleaf.context.WebContext;
-import org.w3c.dom.Attr;
 
 import javax.net.ssl.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.security.KeyManagementException;
@@ -917,9 +914,8 @@ public class CopyContentController extends HttpController {
 
         RemoteClient targetserverClient = getTargetserverClient();
         try {
-            if (isImpersonationAllowed(sourceContent.getOwnerQN(), targetserverClient)) {
-                targetserverClient.impersonate("#" + sourceContent.getOwnerKey());
-                ResponseMessage.addInfoMessage("Impersonating #" + sourceContent.getOwnerKey() + " (" + sourceContent.getOwnerQN() + ")");
+            if (!sourceContent.isModifierDeleted() && isImpersonationAllowed(sourceContent.getModifierQN(), targetserverClient)) {
+                targetserverClient.impersonate("#" + sourceContent.getModifierKey());
             }
         } catch (Exception e) {
             ResponseMessage.addErrorMessage("Error when impersonating src owner " + sourceContent.getOwnerKey());
@@ -1086,9 +1082,8 @@ public class CopyContentController extends HttpController {
     private Integer createContentWithImpersonation(Content sourceContent, CreateContentParams createContentParams) {
         RemoteClient targetserverClient = getTargetserverClient();
         try {
-            if (isImpersonationAllowed(sourceContent.getOwnerQN(), targetserverClient)) {
-                targetserverClient.impersonate("#" + sourceContent.getOwnerKey());
-                ResponseMessage.addInfoMessage("Impersonating #" + sourceContent.getOwnerKey() + " (" + sourceContent.getOwnerQN() + ")");
+            if (!sourceContent.isModifierDeleted() && isImpersonationAllowed(sourceContent.getModifierQN(), targetserverClient)) {
+                targetserverClient.impersonate("#" + sourceContent.getModifierKey());
             }
         } catch (Exception e) {
             ResponseMessage.addErrorMessage("Error when impersonating src owner " + sourceContent.getOwnerKey());
@@ -1315,12 +1310,11 @@ public class CopyContentController extends HttpController {
         createFileContentParams.fileContentData = fileContentDataInput;
 
         try {
-            if (isImpersonationAllowed(sourceContent.getOwnerQN(), targetserverClient)) {
-                targetserverClient.impersonate("#" + sourceContent.getOwnerKey());
-                ResponseMessage.addInfoMessage("Impersonating #" + sourceContent.getOwnerKey() + " (" + sourceContent.getOwnerQN() + ")");
+            if (!sourceContent.isModifierDeleted() && isImpersonationAllowed(sourceContent.getModifierQN(), targetserverClient)) {
+                targetserverClient.impersonate("#" + sourceContent.getModifierKey());
             }
         } catch (Exception e) {
-            ResponseMessage.addErrorMessage("Error when impersonating src owner " + sourceContent.getOwnerKey());
+            ResponseMessage.addErrorMessage("Error when impersonating " + sourceContent.getModifierKey());
             LOG.error("Error when impersonating src owner", e);
         }
 
@@ -1331,6 +1325,7 @@ public class CopyContentController extends HttpController {
         migratedContent.setTargetContentKey(targetContentKey);
         migratedContent.setSourceContent(sourceContent);
         createMigratedContent(migratedContent);
+        targetserverClient.removeImpersonation();
 
     }
 
@@ -1397,13 +1392,11 @@ public class CopyContentController extends HttpController {
             createImageContentParams.status = sourceContent.getStatus();
         }
         try {
-            if (isImpersonationAllowed(sourceContent.getOwnerQN(), targetserverClient)) {
-                targetserverClient.impersonate("#" + sourceContent.getOwnerKey());
-                ResponseMessage.addInfoMessage("Impersonating #" + sourceContent.getOwnerKey() + " (" + sourceContent.getOwnerKey() + ")");
+            if (!sourceContent.isModifierDeleted() && isImpersonationAllowed(sourceContent.getModifierQN(), targetserverClient)) {
+                targetserverClient.impersonate("#" + sourceContent.getModifierKey());
             }
         } catch (Exception e) {
-            ResponseMessage.addErrorMessage("Error when impersonating src owner " + sourceContent.getOwnerKey());
-            LOG.error("Error when impersonating src owner", e);
+            LOG.error("Error when impersonating", e);
         }
 
         targetContentKey = targetserverClient.createImageContent(createImageContentParams);
@@ -1413,6 +1406,7 @@ public class CopyContentController extends HttpController {
         migratedContent.setTargetContentKey(targetContentKey);
         migratedContent.setSourceContent(sourceContent);
         createMigratedContent(migratedContent);
+        targetserverClient.removeImpersonation();
     }
 
 
