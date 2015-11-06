@@ -913,7 +913,7 @@ public class CopyContentController extends HttpController {
         updateMigratedCustomContentWithImpersonation(sourceContent, updateContentParams);
     }
 
-    private void updateMigratedCustomContentWithImpersonation(Content sourceContent, UpdateContentParams updateContentParams) {
+    private Integer updateMigratedCustomContentWithImpersonation(Content sourceContent, UpdateContentParams updateContentParams) {
 
         RemoteClient targetserverClient = getTargetserverClient();
         try {
@@ -928,6 +928,7 @@ public class CopyContentController extends HttpController {
 
         Integer contentVersionKey = targetserverClient.updateContent(updateContentParams);
         targetserverClient.removeImpersonation();
+        return contentVersionKey;
     }
 
     private ContentDataInput getMigratedContentData(MigratedContent migratedContent) {
@@ -1104,6 +1105,8 @@ public class CopyContentController extends HttpController {
         RemoteClient targetServerClient = getTargetserverClient();
 
         Integer newContentKey = null;
+        Integer lastVersionKey = null;
+        int lastVersionStatus = -1;
 
         List<Element> versions = null;
         try {
@@ -1120,16 +1123,29 @@ public class CopyContentController extends HttpController {
             Iterator<Element> versionsElIt = versions.iterator();
             while (versionsElIt.hasNext()){
                 Element versionEl = versionsElIt.next();
+                boolean isCurrentVersion = versionEl.getAttribute("current")!=null?(versionEl.getAttribute("current").getBooleanValue()):false;
+                boolean isLastVersion = !versionsElIt.hasNext();
+
+                Integer versionKey = versionEl.getAttribute("key").getIntValue();
+                Element versionContentEl = (Element)XPath.selectSingleNode(versionsDoc, "contents/content[@versionkey="+versionKey+"]");
                 if (newContentKey==null){
                     Content firstVersionContent = new Content();
-                    firstVersionContent.parseContent(versionEl);
+                    firstVersionContent.parseContent(versionContentEl);
                     migratedContent.setSourceContent(firstVersionContent);
-                    migratedContent.setSourceContentElement(versionEl);
+                    migratedContent.setSourceContentElement(versionContentEl);
 
                     CreateContentParams createContentParams = new CreateContentParams();
                     createContentParams.categoryKey = migratedContent.getTargetCategoryKey();
                     createContentParams.changeComment = versionEl.getChildText("comment");
-                    createContentParams.status = versionEl.getAttribute("status-key").getIntValue();
+                    Integer statusKey = firstVersionContent.getStatus();
+
+                    //NB! API does not allow to create snapshots with createContent
+                    if (statusKey == 1){
+                        statusKey = ContentStatus.STATUS_APPROVED;
+                    }else{
+                        createContentParams.status = statusKey;
+                    }
+                    lastVersionStatus = createContentParams.status;
                     createContentParams.contentData = getMigratedContentData(migratedContent);
                     if (firstVersionContent.getPublishfrom()!=null){
                         createContentParams.publishFrom = firstVersionContent.getPublishfrom();
@@ -1138,18 +1154,50 @@ public class CopyContentController extends HttpController {
                         createContentParams.publishTo = firstVersionContent.getPublishto();
                     }
                     newContentKey = createContentWithImpersonation(firstVersionContent, createContentParams);
+                    GetContentParams getContentParams = new GetContentParams();
+                    getContentParams.includeData=false;
+                    getContentParams.includeVersionsInfo=true;
+                    getContentParams.includeOfflineContent=true;
+                    getContentParams.contentKeys = new int[]{newContentKey};
+                    getContentParams.childrenLevel=0;
+                    Document newContentDoc = targetServerClient.getContent(getContentParams);
+                    lastVersionKey = ((Attribute)XPath.selectSingleNode(newContentDoc,"contents/content/@versionkey")).getIntValue();
+                    ResponseMessage.addInfoMessage("Created migrated content: " + firstVersionContent.getDisplayName());
                 }else{
                     Content newVersionContent = new Content();
-                    newVersionContent.parseContent(versionEl);
+                    newVersionContent.parseContent(versionContentEl);
                     migratedContent.setSourceContent(newVersionContent);
-                    migratedContent.setSourceContentElement(versionEl);
+                    migratedContent.setSourceContentElement(versionContentEl);
                     UpdateContentParams updateContentParams = new UpdateContentParams();
                     updateContentParams.contentData = getMigratedContentData(migratedContent);
                     updateContentParams.changeComment = versionEl.getChildText("comment");
-                    updateContentParams.status = versionEl.getAttribute("status-key").getIntValue();
-                    updateContentParams.createNewVersion = true;
+
+                    Integer statusKey = newVersionContent.getStatus();
+                    updateContentParams.setAsCurrentVersion = isCurrentVersion;
+
+                    if (isLastVersion || isCurrentVersion){
+                        updateContentParams.status = statusKey;
+                    }else{
+                        updateContentParams.status = ContentStatus.STATUS_ARCHIVED;
+                    }
+
+                    /*
+                    updateContentParams.status = statusKey;
+                    if (statusKey == ContentStatus.STATUS_ARCHIVED || statusKey == ContentStatus.STATUS_APPROVED){
+                        updateContentParams.createNewVersion = true;
+                    }else if(lastVersionStatus != ContentStatus.STATUS_DRAFT){
+                        //API only allowes overwriting draft content version
+                        //https://github.com/enonic/cms-ce/blob/e4fd1d8b3eb56cbc096037481ee19d141b22431d/modules/cms-core/src/main/java/com/enonic/cms/core/client/InternalClientContentService.java#L820
+                        updateContentParams.createNewVersion = true;
+                    }else{
+                        updateContentParams.createNewVersion = false;
+                        updateContentParams.contentVersionKey = lastVersionKey;
+                    }
+                    lastVersionStatus = statusKey;
+                    */
+
                     updateContentParams.updateStrategy = ContentDataInputUpdateStrategy.REPLACE_ALL;
-                    updateContentParams.setAsCurrentVersion = true;
+                    updateContentParams.contentKey = newContentKey;
 
                     if (newVersionContent.getPublishfrom()!=null){
                         updateContentParams.publishFrom = newVersionContent.getPublishfrom();
@@ -1158,41 +1206,14 @@ public class CopyContentController extends HttpController {
                         updateContentParams.publishTo = newVersionContent.getPublishto();
                     }
                     try {
-                        updateMigratedCustomContentWithImpersonation(newVersionContent, updateContentParams);
+                        lastVersionKey = updateMigratedCustomContentWithImpersonation(newVersionContent, updateContentParams);
+                        ResponseMessage.addInfoMessage("Updated migrated content: " + newVersionContent.getDisplayName());
                     }catch (Exception e){
-                        ResponseMessage.addWarningMessage("Exception when opdating migrated content version");
+                        ResponseMessage.addWarningMessage("Exception when updating migrated content version");
                     }
                 }
 
             }
-
-            try {
-                Helper.prettyPrint(versionsDoc);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-
-            /*for (Element version : versions){
-                Integer versionKey = Integer.parseInt(version.getAttributeValue("key"));
-                Integer statusKey = Integer.parseInt(version.getAttributeValue("status-key"));
-                String changeComment = version.getChildText("comment");
-                int pversionKeys[] = versionKeys.toArray(Integer[] a);
-                Document versionsDoc = getVersionDoc(versionKeys.toArray(Integer[]));
-                Document versionDoc =  getVersionDoc(versionKey);
-
-                if (versionDoc==null){
-                    continue;
-                }
-
-                Content contentVersion = new Content();
-                Element contentVersionEl = (Element)XPath.selectSingleNode(versionDoc,"contents/content");
-                contentVersion.parseContent(contentVersionEl);
-                migratedContent.setSourceContentElement(contentVersionEl);
-                migratedContent.setSourceContent(contentVersion);
-                createContentParams.changeComment = changeComment;
-                newContentKey = createContentWithImpersonation(sourceContent, createContentParams);
-            }*/
         } catch (JDOMException e) {
             ResponseMessage.addWarningMessage("could not get versions for content");
         }
@@ -1392,10 +1413,6 @@ public class CopyContentController extends HttpController {
         migratedContent.setTargetContentKey(targetContentKey);
         migratedContent.setSourceContent(sourceContent);
         createMigratedContent(migratedContent);
-    }
-
-    private void createVersionsAndDrafts(MigratedContent migratedContent) {
-
     }
 
 
