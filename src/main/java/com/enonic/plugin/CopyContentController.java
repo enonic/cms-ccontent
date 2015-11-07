@@ -828,23 +828,23 @@ public class CopyContentController extends HttpController {
         Element existingMigratedContent = null;
         Document migratedContentDoc = null;
         boolean isAlreadyMigrated = false;
-        boolean isMigratedContentModifiedByCustomer = false;
 
         try {
             existingMigratedContent = getExistingContentHandler().getExistingMigratedContentOrCategory(sourceContent.getKey(), "content");
-            isAlreadyMigrated = true;
+            if (existingMigratedContent!=null){
+                isAlreadyMigrated = true;
+            }
         } catch (Exception e) {
             ResponseMessage.addWarningMessage("Exception while trying to fetch existing migrated content for '" + sourceContent.getDisplayName() + "'");
-        }
-
-        if (isAlreadyMigrated && !updateContent) {
-            ResponseMessage.addInfoMessage("abortin because content is already migrated and 'updateContent' is " + updateContent);
-            return;
         }
 
         Content targetContent = null;
 
         if (isAlreadyMigrated) {
+            if (!updateContent){
+                ResponseMessage.addInfoMessage("aborting because content is already migrated and 'updateContent' is " + updateContent);
+                return;
+            }
             targetContent = getTargetContent(existingMigratedContent);
         }
 
@@ -872,6 +872,7 @@ public class CopyContentController extends HttpController {
             GetContentParams getContentParams = new GetContentParams();
             getContentParams.contentKeys = new int[]{Integer.parseInt(newKeyEl.getValue())};
             getContentParams.includeData = true;
+            getContentParams.includeOfflineContent=true;
             Document migratedContentDoc = targetserverClient.getContent(getContentParams);
             Element migratedContentElement = (Element) XPath.selectSingleNode(migratedContentDoc, "contents/content");
 
