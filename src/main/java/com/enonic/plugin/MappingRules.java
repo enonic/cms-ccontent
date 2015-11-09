@@ -23,7 +23,8 @@ public class MappingRules {
                 "language".equals(mappingObjectHolder.getInputMapping().getAttributeValue("dest"))) {
             return true;
         }else if ("HB-artikkel".equals(mappingObjectHolder.getTargetContenttype().getName()) &&
-                "artikkel".equals(mappingObjectHolder.getSourceContenttype().getName()) &&
+                ("artikkel".equals(mappingObjectHolder.getSourceContenttype().getName()) ||
+                "artikkel-pasientinformasjon".equals(mappingObjectHolder.getSourceContenttype().getName())) &&
                 "size".equals(mappingObjectHolder.getInputMapping().getAttributeValue("src")) &&
                 "image-size".equals(mappingObjectHolder.getInputMapping().getAttributeValue("dest"))) {
             return true;
@@ -49,7 +50,8 @@ public class MappingRules {
                 "language".equals(mappingObjectHolder.getInputMapping().getAttributeValue("dest"))) {
             return handleHBLinkLanguageTextToDropdownMapping(mappingObjectHolder);
         }else if ("HB-artikkel".equals(mappingObjectHolder.getTargetContenttype().getName()) &&
-                "artikkel".equals(mappingObjectHolder.getSourceContenttype().getName()) &&
+                ("artikkel".equals(mappingObjectHolder.getSourceContenttype().getName()) ||
+                "artikkel-pasientinformasjon".equals(mappingObjectHolder.getSourceContenttype().getName())) &&
                 "size".equals(mappingObjectHolder.getInputMapping().getAttributeValue("src")) &&
                 "image-size".equals(mappingObjectHolder.getInputMapping().getAttributeValue("dest"))) {
             return handleHBArticleListImageDropdownMapping(mappingObjectHolder);

@@ -1,6 +1,11 @@
 package com.enonic.plugin;
 
+import com.enonic.cms.api.client.ClientException;
+import com.enonic.cms.api.client.RemoteClient;
+import com.enonic.cms.api.client.model.ContentDataInputUpdateStrategy;
 import com.enonic.cms.api.client.model.GetBinaryParams;
+import com.enonic.cms.api.client.model.GetContentBinaryParams;
+import com.enonic.cms.api.client.model.UpdateContentParams;
 import com.enonic.cms.api.client.model.content.*;
 import com.enonic.plugin.util.ResponseMessage;
 import org.apache.commons.lang.StringUtils;
@@ -283,9 +288,9 @@ public class InputMapper {
                 Integer binaryKey = binaryKeyAttr.getIntValue();
                 ResponseMessage.addInfoMessage("Found binarydata with source key " + binaryKey);
 
-                GetBinaryParams getBinaryParams = new GetBinaryParams();
-                getBinaryParams.binaryKey = binaryKey;
-                Document binaryDoc = clientProvider.getTargetserverClient().getBinary(getBinaryParams);
+
+                Document binaryDoc = getBinaryWithFix4ClientExceptionWhenArchived(clientProvider.getTargetserverClient(), binaryKey, null);
+                //clientProvider.getTargetserverClient().getBinary(getBinaryParams);
                 String fileName = ((Element) XPath.selectSingleNode(binaryDoc, "//filename")).getValue();
                 String base64EncodedBinaryString = binaryDoc.getRootElement().getChild("data").getText().trim();
 
@@ -299,6 +304,41 @@ public class InputMapper {
         }
         return binaryInput;
     }
+
+    private Document getBinaryWithFix4ClientExceptionWhenArchived(RemoteClient client, Integer binaryKey, Integer contentKey) {
+        GetBinaryParams getBinaryParams = new GetBinaryParams();
+        getBinaryParams.binaryKey = binaryKey;
+        Document binary = null;
+        try {
+            binary = client.getBinary(getBinaryParams);
+        }catch (ClientException cx){
+            if (binary==null && cx.getMessage()!=null && cx.getMessage().contains("Attachment not found"));{
+                ResponseMessage.addInfoMessage("Known bug encountered. A binary could not be fetched because it is archived");
+                //TODO: Implement fix for this. Get contentkey and approve content, then get binary, then archive content
+                /*
+                //Approve binary content temporarily, so it can be fetched
+                UpdateContentParams updateContentParams = new UpdateContentParams();
+                updateContentParams.contentKey=getBinaryParams.binaryKey;
+                updateContentParams.status=ContentStatus.STATUS_APPROVED;
+                updateContentParams.publishFrom = new Date();
+                updateContentParams.updateStrategy = ContentDataInputUpdateStrategy.REPLACE_NEW;
+                client.updateContent(updateContentParams);
+                //Fetch it
+                binary = client.getBinary(getBinaryParams);
+                //Set the status of content back to 'archived' and log result
+                updateContentParams.status=ContentStatus.STATUS_ARCHIVED;
+                client.updateContent(updateContentParams);
+                if (binary!=null){
+                    ResponseMessage.addInfoMessage("Applied fix for known bug with 'attachment not found'. Approved it; migrated it; re-archived it");
+                }else{
+                    ResponseMessage.addWarningMessage("Applied bug-fix code for 'attachment not found', but it is still null!");
+                }*/
+            }
+        }
+        return binary;
+    }
+
+
 
     private Input getDeprecatedFilesInput(MappingObjectHolder mappingObjectHolder) {
         DeprecatedFilesInput filesInput = new DeprecatedFilesInput(mappingObjectHolder.getInputMappingDest());

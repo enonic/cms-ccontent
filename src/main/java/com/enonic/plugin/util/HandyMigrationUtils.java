@@ -31,7 +31,6 @@ import java.util.*;
 * */
 public class HandyMigrationUtils {
 
-    //final static RemoteClient remoteClient = ClientFactory.getRemoteClient("http://80.65.59.141:8080/rpc/bin");
     final static RemoteClient remoteClient = ClientFactory.getRemoteClient("http://localhost:8080/rpc/bin");
 
     final static XMLOutputter xmloutraw = new XMLOutputter(Format.getRawFormat());
@@ -57,7 +56,24 @@ public class HandyMigrationUtils {
         //testWhitespaceBugRelatedToCMS2313();
         //testDraftsVersionsMigration();
         //testAttachmentNotFoundException();
-        testImageNotFoundException();
+        //testImageNotFoundException();
+        testBinaryNotFoundException();
+
+    }
+
+    private static void testBinaryNotFoundException() throws Exception{
+        Document doc;
+        xmloutraw.setFormat(Format.getPrettyFormat());
+        GetBinaryParams getBinaryParams = new GetBinaryParams();
+        getBinaryParams.binaryKey=82275;
+        try {
+            doc = remoteClient.getBinary(getBinaryParams);
+            xmloutraw.output(doc, System.out);
+        }catch (Exception cx){
+            if (cx.getMessage()!=null && cx.getMessage().contains("Attachment not found"));{
+                System.out.println("Attachment not found, try to approve it");
+            }
+        }
 
     }
 
