@@ -6,6 +6,7 @@ import com.enonic.cms.api.client.LocalClient;
 import com.enonic.cms.api.client.RemoteClient;
 import com.enonic.cms.api.client.model.*;
 import com.enonic.cms.api.client.model.content.ContentDataInput;
+import com.enonic.cms.api.client.model.content.ContentStatus;
 import com.enonic.cms.api.client.model.content.HtmlAreaInput;
 import com.enonic.cms.api.client.model.content.TextInput;
 import org.jdom.Attribute;
@@ -30,11 +31,14 @@ import java.util.*;
 * */
 public class HandyMigrationUtils {
 
+    //final static RemoteClient remoteClient = ClientFactory.getRemoteClient("http://80.65.59.141:8080/rpc/bin");
     final static RemoteClient remoteClient = ClientFactory.getRemoteClient("http://localhost:8080/rpc/bin");
+
     final static XMLOutputter xmloutraw = new XMLOutputter(Format.getRawFormat());
     //final static Logger LOG = LoggerFactory.getLogger(HandyMigrationUtils.class);
 
-    final static int[] CATEGORYKEYS = new int[]{3398};
+    final static int[] CATEGORYKEYS = new int[]{};
+
 
     static {
         try {
@@ -52,6 +56,79 @@ public class HandyMigrationUtils {
         //getListOfAllContenttypesWithContentForTopCategory(1298);
         //testWhitespaceBugRelatedToCMS2313();
         //testDraftsVersionsMigration();
+        //testAttachmentNotFoundException();
+        testImageNotFoundException();
+
+    }
+
+    private static void testImageNotFoundException() throws Exception{
+        Document doc;
+        xmloutraw.setFormat(Format.getPrettyFormat());
+        GetContentBinaryParams getContentBinaryParams = new GetContentBinaryParams();
+        getContentBinaryParams.contentKey=195792;
+        try {
+            doc = remoteClient.getContentBinary(getContentBinaryParams);
+            xmloutraw.output(doc, System.out);
+        }catch (Exception cx){
+            if (cx.getMessage()!=null && cx.getMessage().contains("Attachment not found"));{
+                System.out.println("Attachment not found, try to approve it");
+                UpdateContentParams updateContentParams = new UpdateContentParams();
+                updateContentParams.contentKey=195792;
+                updateContentParams.status=ContentStatus.STATUS_APPROVED;
+                updateContentParams.publishFrom = new Date();
+                updateContentParams.updateStrategy = ContentDataInputUpdateStrategy.REPLACE_NEW;
+                remoteClient.updateContent(updateContentParams);
+                doc = remoteClient.getContentBinary(getContentBinaryParams);
+                xmloutraw.output(doc, System.out);
+                updateContentParams.status=ContentStatus.STATUS_ARCHIVED;
+                remoteClient.updateContent(updateContentParams);
+                /*MoveContentParams moveContentParams = new MoveContentParams();
+                moveContentParams.categoryKey =7376;
+                moveContentParams.contentKey=195792;
+                remoteClient.moveContent(moveContentParams);
+                System.out.println("Should have moved content..");*/
+            }
+        }
+
+    }
+
+    private static void testAttachmentNotFoundException() throws Exception{
+        Document doc = null;
+        xmloutraw.setFormat(Format.getPrettyFormat());
+
+        GetContentParams getContentParams = new GetContentParams();
+        getContentParams.contentKeys = new int[]{35865};
+        getContentParams.includeOfflineContent=true;
+        doc = remoteClient.getContent(getContentParams);
+        xmloutraw.output(doc, System.out);
+
+        GetContentBinaryParams getContentBinaryParams = new GetContentBinaryParams();
+        getContentBinaryParams.contentKey = 35865;
+
+        try{
+            doc = remoteClient.getContentBinary(getContentBinaryParams);
+            xmloutraw.output(doc, System.out);
+        }catch (ClientException cx){
+            System.out.println(cx.getMessage());
+            if (cx.getMessage()!=null && cx.getMessage().contains("Attachment not found"));{
+                System.out.println("Attachment not found, try to approve it");
+                UpdateContentParams updateContentParams = new UpdateContentParams();
+                updateContentParams.contentKey=35865;
+                updateContentParams.status=2;
+                updateContentParams.publishFrom = new Date();
+                updateContentParams.updateStrategy = ContentDataInputUpdateStrategy.REPLACE_NEW;
+                remoteClient.updateContent(updateContentParams);
+                doc = remoteClient.getContentBinary(getContentBinaryParams);
+                xmloutraw.output(doc, System.out);
+                updateContentParams.status=ContentStatus.STATUS_ARCHIVED;
+                remoteClient.updateContent(updateContentParams);
+                MoveContentParams moveContentParams = new MoveContentParams();
+                moveContentParams.categoryKey =7376;
+                moveContentParams.contentKey=35865;
+                //remoteClient.moveContent(moveContentParams);
+                System.out.println("Should have moved content..");
+            }
+        }
 
     }
 

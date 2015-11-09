@@ -1261,7 +1261,8 @@ public class CopyContentController extends HttpController {
         getContentBinaryParams.contentKey = sourceContent.getKey();
         Document contentBinary = null;
 
-        contentBinary = sourceserverClient.getContentBinary(getContentBinaryParams);
+        //contentBinary = sourceserverClient.getContentBinary(getContentBinaryParams);
+        contentBinary = getContentBinaryWithFix4ClientExceptionWhenArchived(sourceserverClient,getContentBinaryParams);
 
         if (contentBinary == null) {
             ResponseMessage.addWarningMessage("File binary not found, skipping file");
@@ -1344,7 +1345,8 @@ public class CopyContentController extends HttpController {
         getContentBinaryParams.contentKey = sourceContent.getKey();
         getContentBinaryParams.label = "source";
         Document contentBinary = null;
-        contentBinary = sourceserverClient.getContentBinary(getContentBinaryParams);
+
+        contentBinary = getContentBinaryWithFix4ClientExceptionWhenArchived(sourceserverClient, getContentBinaryParams);
 
         if (contentBinary == null) {
             ResponseMessage.addWarningMessage("Image binary not found, skipping image");
@@ -1410,6 +1412,35 @@ public class CopyContentController extends HttpController {
         migratedContent.setSourceContent(sourceContent);
         createMigratedContent(migratedContent);
         targetserverClient.removeImpersonation();
+    }
+
+    private Document getContentBinaryWithFix4ClientExceptionWhenArchived(RemoteClient sourceserverClient, GetContentBinaryParams getContentBinaryParams) {
+        Document contentBinary = null;
+        try {
+            contentBinary = sourceserverClient.getContentBinary(getContentBinaryParams);
+        }catch (ClientException cx){
+            if (contentBinary==null && cx.getMessage()!=null && cx.getMessage().contains("Attachment not found"));{
+                ResponseMessage.addInfoMessage("Known bug encountered. A binary could not be fetched because it is archived");
+                //Approve binary content temporarily, so it can be fetched
+                UpdateContentParams updateContentParams = new UpdateContentParams();
+                updateContentParams.contentKey=getContentBinaryParams.contentKey;
+                updateContentParams.status=ContentStatus.STATUS_APPROVED;
+                updateContentParams.publishFrom = new Date();
+                updateContentParams.updateStrategy = ContentDataInputUpdateStrategy.REPLACE_NEW;
+                sourceserverClient.updateContent(updateContentParams);
+                //Fetch it
+                contentBinary = sourceserverClient.getContentBinary(getContentBinaryParams);
+                //Set the status of content back to 'archived' and log result
+                updateContentParams.status=ContentStatus.STATUS_ARCHIVED;
+                sourceserverClient.updateContent(updateContentParams);
+                if (contentBinary!=null){
+                    ResponseMessage.addInfoMessage("Applied fix for known bug with 'attachment not found'. Approved it; migrated it; re-archived it");
+                }else{
+                    ResponseMessage.addWarningMessage("Applied bug-fix code for 'attachment not found', but it is still null!");
+                }
+            }
+        }
+        return contentBinary;
     }
 
 
