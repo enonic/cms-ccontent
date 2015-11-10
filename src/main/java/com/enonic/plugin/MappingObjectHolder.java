@@ -64,7 +64,7 @@ public class MappingObjectHolder {
         return contentInputElement;
     }
 
-    public String toString() {
+    /*public String toString() {
         try{
             return "\nsourceContentType:"+sourceContenttype.getName()+
                     "\ntargetContentType:"+targetContenttype.getName()+
@@ -74,8 +74,7 @@ public class MappingObjectHolder {
         }catch (Exception e){
             return "MappingObjectHolder.toString(): Values not initiated";
         }
-
-    }
+    }*/
 
     public String getSourceInputType() {
         return getSourceInputElement().getAttributeValue("type");
@@ -90,15 +89,15 @@ public class MappingObjectHolder {
         return getInputMapping().getAttributeValue("dest");
     }
 
-    public void setBlockGroupBasePath(String blockGroupBasePath) {
+    /*public void setBlockGroupBasePath(String blockGroupBasePath) {
         this.blockGroupBasePath = blockGroupBasePath;
     }
 
     public String getInputMappingSrcXpath(){
-        //Should be set set explicitly if f.eks. block groupd migration with base attribute
+        //Should be set set explicitly if f.eks. block group migration with base attribute
         if (!Strings.isNullOrEmpty(blockGroupBasePath)){
             return blockGroupBasePath+"/";
         }
         return "contentdata/";
-    }
+    }*/
 }

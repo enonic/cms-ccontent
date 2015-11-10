@@ -7,6 +7,7 @@ import com.enonic.cms.api.client.model.GetBinaryParams;
 import com.enonic.cms.api.client.model.GetContentBinaryParams;
 import com.enonic.cms.api.client.model.UpdateContentParams;
 import com.enonic.cms.api.client.model.content.*;
+import com.enonic.cms.api.plugin.PluginEnvironment;
 import com.enonic.plugin.util.ResponseMessage;
 import org.apache.commons.lang.StringUtils;
 import org.jdom.Attribute;
@@ -35,10 +36,12 @@ public class InputMapper {
 
     ExistingContentHandler existingContentHandler;
     ClientProvider clientProvider;
+    PluginEnvironment pluginEnvironment;
 
-    public InputMapper(ClientProvider clientProvider, ExistingContentHandler existingContentHandler){
+    public InputMapper(ClientProvider clientProvider, ExistingContentHandler existingContentHandler, PluginEnvironment pluginEnvironment){
         this.existingContentHandler = existingContentHandler;
         this.clientProvider = clientProvider;
+        this.pluginEnvironment = pluginEnvironment;
     }
 
     public Input getInput(MappingObjectHolder mappingObjectHolder) {
@@ -82,11 +85,13 @@ public class InputMapper {
         ResponseMessage.addInfoMessage("Get image content " + mappingObjectHolder.getInputMappingSrc());
         Attribute imageKeyAttr = null;
         try {
-            imageKeyAttr = (Attribute) XPath.selectSingleNode(mappingObjectHolder.getContentInputElement(), mappingObjectHolder.getInputMappingSrcXpath() + mappingObjectHolder.getInputMappingSrc() + "/@key");
+            //String imageKeyXpath = mappingObjectHolder.getInputMappingSrcXpath() + mappingObjectHolder.getInputMappingSrc() + "/@key";
+            imageKeyAttr = (Attribute) XPath.selectSingleNode(mappingObjectHolder.getContentInputElement(), "@key");
         } catch (Exception e) {
             ResponseMessage.addErrorMessage("Error when getting image key from content");
         }
         if (imageKeyAttr == null) {
+            ResponseMessage.addErrorMessage("Error. Image key is null");
             return null;
         }
 
@@ -104,22 +109,25 @@ public class InputMapper {
         }
 
         ResponseMessage.addInfoMessage("Old image key" + imageKey);
+        Integer newKey = null;
         Element existingMigratedContent = null;
         try {
             existingMigratedContent = existingContentHandler.getExistingMigratedContentOrCategory(imageKey, "image");
+            newKey = Integer.parseInt(((Element) XPath.selectSingleNode(existingMigratedContent, "contentdata/newkey")).getValue());
         } catch (Exception e) {
             ResponseMessage.addErrorMessage("Error when getting image related content, image key = " + imageKey);
         }
-        if (existingMigratedContent == null) {
-            return null;
-        }
 
-        Integer newKey = null;
-        try {
-            newKey = Integer.parseInt(((Element) XPath.selectSingleNode(existingMigratedContent, "contentdata/newkey")).getValue());
-        } catch (Exception e) {
-            ResponseMessage.addErrorMessage("Error when getting newKey from existing migrated content, key = " + newKey);
-            return null;
+        if (newKey==null){
+            try {
+                String missingKey = pluginEnvironment.getSharedObject("context_missingimagekey").toString();
+                newKey = Integer.parseInt(missingKey);
+                if (newKey!=null){
+                    ResponseMessage.addWarningMessage("Replacing image with default missing image key " + newKey);
+                }
+            }catch (Exception e){
+                ResponseMessage.addWarningMessage("Error while replacing image with default missing image key");
+            }
         }
 
         if (newKey == null) {
@@ -156,16 +164,31 @@ public class InputMapper {
                     } catch (Exception e) {
                         LOG.warn("Error while loogin for existing migrated content");
                     }
+
+                    Integer newKey = null;
+
                     if (existingMigratedContent != null) {
                         Element newKeyEl = null;
                         try {
                             newKeyEl = ((Element) XPath.selectSingleNode(existingMigratedContent, "contentdata/newkey"));
+                            newKey = Integer.parseInt(newKeyEl.getValue());
                         } catch (Exception e) {
                             LOG.warn("Error while getting key from existing migrated content, key =  " + newKeyEl);
                         }
-                        if (newKeyEl != null) {
-                            relatedContentsInput.addRelatedContent(Integer.parseInt(newKeyEl.getValue()));
+                    }
+
+                    //TODO: Not implemented. Code below will fail if there is a relatedcontent filter in the contenttype.
+                    /*if (newKey==null){
+                        try {
+                            String missingKey = pluginEnvironment.getSharedObject("context_missingcontentkey").toString();
+                            newKey = Integer.parseInt(missingKey);
+                        }catch (Exception e){
+                            ResponseMessage.addWarningMessage("Error while replaceing relatedcontent with default missing content key");
                         }
+                    }*/
+
+                    if (newKey != null) {
+                        relatedContentsInput.addRelatedContent(newKey);
                     }
                 }
             }
@@ -176,13 +199,13 @@ public class InputMapper {
         } else {
             Attribute relatedContentKeyAttr = null;
             try {
-                relatedContentKeyAttr = (Attribute) XPath.selectSingleNode(mappingObjectHolder.getContentInputElement(), mappingObjectHolder.getInputMappingSrcXpath() + mappingObjectHolder.getInputMappingSrc() + "/@key");
+                relatedContentKeyAttr = (Attribute) XPath.selectSingleNode(mappingObjectHolder.getContentInputElement(), "@key");
             } catch (Exception e) {
                 ResponseMessage.addWarningMessage("Error while getting relatedcontent");
             }
             if (relatedContentKeyAttr == null) {
                 try {
-                    relatedContentKeyAttr = (Attribute) XPath.selectSingleNode(mappingObjectHolder.getContentInputElement(), mappingObjectHolder.getInputMappingSrcXpath() + mappingObjectHolder.getInputMappingSrc() + "/content/@key");
+                    relatedContentKeyAttr = (Attribute) XPath.selectSingleNode(mappingObjectHolder.getContentInputElement(), "/content/@key");
                 } catch (Exception e) {
                     ResponseMessage.addWarningMessage("Error while getting relatedcontent");
                 }
@@ -244,10 +267,98 @@ public class InputMapper {
             LOG.info("to textarea ");
             return getTextAreaInput(mappingObjectHolder);
         }
-        String html = xmlOutputter.outputString(mappingObjectHolder.getContentInputElement());
+        Element htmlEl = mappingObjectHolder.getContentInputElement();
 
+        List<Element> htmlElements = htmlEl.getChildren();
+
+        if (htmlElements != null && !htmlElements.isEmpty()) {
+            try {
+                ResponseMessage.addWarningMessage("Error when scanning htmlArea for internal links");
+                scanHtmlAreaForInternalLinks(htmlElements);
+            } catch (Exception e) {
+                ResponseMessage.addWarningMessage("Error when scanning htmlArea for internal links");
+            }
+        }
+        String html = htmlElements!=null?xmlOutputter.outputString(htmlElements):xmlOutputter.outputString(htmlEl);
         return new HtmlAreaInput(mappingObjectHolder.getInputMappingDest(), html);
     }
+    private void scanHtmlAreaForInternalLinks(List<Element> htmlElements) throws Exception {
+        String[] internalLinks = new String[]{"image://", "content://", "file://", "attachment://", "page://"};
+        char[] internalLinksPostfixes = new char[]{'?', '"'};
+        Iterator<Element> htmlElementsIt = htmlElements.iterator();
+        while (htmlElementsIt.hasNext()) {
+            Element htmlEl = htmlElementsIt.next();
+            List<Attribute> htmlElAttr = htmlEl.getAttributes();
+            Iterator<Attribute> htmlElAttrIt = htmlElAttr.iterator();
+            while (htmlElAttrIt.hasNext()) {
+                Attribute htmlAttribute = htmlElAttrIt.next();
+                String htmlAttributeValue = htmlAttribute.getValue();
+                for (String internalLink : internalLinks) {
+                    if (htmlAttributeValue.contains(internalLink)) {
+                        try {
+                            ResponseMessage.addInfoMessage(htmlAttributeValue + " contains " + internalLink);
+                            int beginIndex = htmlAttributeValue.indexOf(internalLink) + internalLink.length();
+                            int endIndex = StringUtils.indexOfAny(htmlAttributeValue, internalLinksPostfixes);
+                            if (endIndex == -1) {//string cointains only id, no parameters
+                                endIndex = htmlAttributeValue.length();
+                            }
+                            String guessedOldKey = htmlAttributeValue.substring(beginIndex, endIndex);
+                            //TODO: Quickfix
+                            if (guessedOldKey.contains("/")) {
+                                guessedOldKey = guessedOldKey.replaceAll("/", "");
+                            }
+
+                            ResponseMessage.addInfoMessage("Guessed old key " + guessedOldKey);
+                            if (StringUtils.isNumeric(guessedOldKey)) {
+                                //check if content of type custom content, file, image exists
+                                ResponseMessage.addInfoMessage("Check if content is migrated for " + internalLink.replace("://", ""));
+                                Element existingMigratedContent = existingContentHandler.getExistingMigratedContentOrCategory(Integer.parseInt(guessedOldKey), internalLink.replace("://", ""));
+
+                                if (existingMigratedContent == null && internalLink.contains("attachment")) {
+                                    //TODO: Doing this because attachment links can be either images, files or content. Check if contentkeys are 100% unique across different types.
+                                    existingMigratedContent = performExtraCheckForAttachments(guessedOldKey);
+                                }
+                                if (existingMigratedContent == null) {
+                                    ResponseMessage.addWarningMessage("linked content not migrated. Replacing " + internalLink + " link with default 'missing key'");
+                                    String typeOfInternalLink = internalLink.replace("://", "");
+                                    String missingKey = pluginEnvironment.getSharedObject("context_missing" + typeOfInternalLink + "key").toString();
+                                    htmlAttributeValue = htmlAttributeValue.replace(guessedOldKey, missingKey);
+                                    htmlAttribute.setValue(htmlAttributeValue);
+                                } else {
+                                    ResponseMessage.addInfoMessage("Get new key from migrated content");
+                                    String newKey = ((Element) XPath.selectSingleNode(existingMigratedContent, "//newkey")).getValue();
+                                    htmlAttributeValue = htmlAttributeValue.replace(guessedOldKey, newKey);
+                                    htmlAttribute.setValue(htmlAttributeValue);
+                                    ResponseMessage.addInfoMessage("Replaced old key " + guessedOldKey + " with new key " + newKey);
+                                }
+                            } else {
+
+                                ResponseMessage.addWarningMessage("linked content not migrated as no old key could be found in string");
+                                //htmlAttribute.setValue(internalLink + pluginEnvironment.getSharedObject("context_missing" + internalLink.replace("://", "") + "key").toString());
+                            }
+                            break;
+                        } catch (Exception e) {
+                            ResponseMessage.addErrorMessage("Failed to replace internal link key" + e);
+                        }
+                    }
+
+                }
+            }
+            scanHtmlAreaForInternalLinks(htmlEl.getChildren());
+        }
+    }
+
+    private Element performExtraCheckForAttachments(String guessedOldKey) throws Exception {
+        Element existingMigratedContent = existingContentHandler.getExistingMigratedContentOrCategory(Integer.parseInt(guessedOldKey), "file");
+        if (existingMigratedContent == null) {
+            existingMigratedContent = existingContentHandler.getExistingMigratedContentOrCategory(Integer.parseInt(guessedOldKey), "image");
+        }
+        if (existingMigratedContent == null) {
+            existingMigratedContent = existingContentHandler.getExistingMigratedContentOrCategory(Integer.parseInt(guessedOldKey), "content");
+        }
+        return existingMigratedContent;
+    }
+
 
     private Input getTextAreaInput(MappingObjectHolder mappingObjectHolder) {
         ResponseMessage.addInfoMessage(("Migrate textarea " + mappingObjectHolder.getInputMappingSrc()));
@@ -353,6 +464,18 @@ public class InputMapper {
                     continue;
                 }
                 Integer newKey = existingContentHandler.getExistingMigratedContentOrCategoryKey(fileKey.getIntValue(), "file");
+                if (newKey==null){
+                    try {
+                        String missingKey = pluginEnvironment.getSharedObject("context_missingfilekey").toString();
+                        newKey = Integer.parseInt(missingKey);
+                        if (newKey!=null){
+                            ResponseMessage.addWarningMessage("Replacing file with default missing file key " + newKey);
+                        }
+                    }catch (Exception e){
+                        ResponseMessage.addWarningMessage("Error while replacing file with default missing file key");
+                    }
+                }
+
                 if (newKey != null) {
                     ResponseMessage.addInfoMessage("Found migrated file content, adding to migrated content");
                     filesInput.addFile(newKey);
@@ -383,15 +506,29 @@ public class InputMapper {
         Integer newKey = null;
         try {
             newKey = existingContentHandler.getExistingMigratedContentOrCategoryKey(fileKey, "file");
+            if (newKey!=null){
+                ResponseMessage.addInfoMessage("Found migrated file content, adding to migrated content " + newKey);
+            }
         } catch (Exception e) {
             ResponseMessage.addErrorMessage("Error when trying to find existing content for file");
+        }
+
+        if (newKey==null){
+            try {
+                String missingKey = pluginEnvironment.getSharedObject("context_missingfilekey").toString();
+                newKey = Integer.parseInt(missingKey);
+                if (newKey!=null){
+                    ResponseMessage.addWarningMessage("Replacing file with default missing file key " + newKey);
+                }
+            }catch (Exception e){
+                ResponseMessage.addWarningMessage("Error while replacing file with default missing file key");
+            }
         }
 
         if (newKey == null) {
             return null;
         }
 
-        ResponseMessage.addInfoMessage("Found migrated file content, adding to migrated content");
         return new FileInput(mappingObjectHolder.getInputMappingDest(), newKey);
     }
 

@@ -970,12 +970,13 @@ public class CopyContentController extends HttpController {
                                     ((Element) XPath.selectSingleNode(migratedContent.getSourceContenttypeDoc(), "//input[xpath='" + mappingObjectHolder.getInputMappingSrc() + "']")));
                             mappingObjectHolder.setTargetInputElement(
                                     ((Element) XPath.selectSingleNode(migratedContent.getTargetContenttypeDoc(), "//input[@name='" + mappingObjectHolder.getInputMappingDest() + "']")));
-                            mappingObjectHolder.setContentInputElement(blockGroupContent.getChild(mappingObjectHolder.getInputMappingSrc()));
-                            mappingObjectHolder.setBlockGroupBasePath(blockGroupContent.getAttributeValue("base"));
+                            String inputMappingChildName = mappingObjectHolder.getInputMappingSrc();
+                            Element inputMappingChild = blockGroupContent.getChild(inputMappingChildName);
+                            mappingObjectHolder.setContentInputElement(inputMappingChild);
 
                             ResponseMessage.addInfoMessage("Add " + mappingObjectHolder.getSourceInputType() + " " + mappingObjectHolder.getInputMappingSrc() + " to " + mappingObjectHolder.getTargetInputType() + " " + mappingObjectHolder.getInputMappingDest());
                             ResponseMessage.addInfoMessage(mappingObjectHolder.toString());
-                            InputMapper inputMapper = new InputMapper(getClientProvider(), getExistingContentHandler());
+                            InputMapper inputMapper = new InputMapper(getClientProvider(), getExistingContentHandler(), pluginEnvironment);
                             Input i = inputMapper.getInput(mappingObjectHolder);
                             if (i != null) {
                                 ResponseMessage.addInfoMessage("Adding input " + i.getName() + " to group");
@@ -1024,7 +1025,7 @@ public class CopyContentController extends HttpController {
 
                 LOG.info(mappingObjectHolder.toString());
 
-                InputMapper inputMapper = new InputMapper(getClientProvider(), getExistingContentHandler());
+                InputMapper inputMapper = new InputMapper(getClientProvider(), getExistingContentHandler(), pluginEnvironment);
                 Input i = inputMapper.getInput(mappingObjectHolder);
                 if (i != null) {
                     ResponseMessage.addInfoMessage("adding input name:" + i.getName() + " type: + " + i.getType());
@@ -1494,82 +1495,6 @@ public class CopyContentController extends HttpController {
         }
         ResponseMessage.addInfoMessage("User does not exist, impersonation is not allowed for " + qName);
         return false;
-    }
-
-    private void scanHtmlAreaForInternalLinks(List<Element> htmlElements) throws Exception {
-        String[] internalLinks = new String[]{"image://", "content://", "file://", "attachment://", "page://"};
-        char[] internalLinksPostfixes = new char[]{'?', '"'};
-        Iterator<Element> htmlElementsIt = htmlElements.iterator();
-        while (htmlElementsIt.hasNext()) {
-            Element htmlEl = htmlElementsIt.next();
-            List<Attribute> htmlElAttr = htmlEl.getAttributes();
-            Iterator<Attribute> htmlElAttrIt = htmlElAttr.iterator();
-            while (htmlElAttrIt.hasNext()) {
-                Attribute htmlAttribute = htmlElAttrIt.next();
-                String htmlAttributeValue = htmlAttribute.getValue();
-                for (String internalLink : internalLinks) {
-                    if (htmlAttributeValue.contains(internalLink)) {
-                        try {
-                            ResponseMessage.addInfoMessage(htmlAttributeValue + " contains " + internalLink);
-                            int beginIndex = htmlAttributeValue.indexOf(internalLink) + internalLink.length();
-                            int endIndex = StringUtils.indexOfAny(htmlAttributeValue, internalLinksPostfixes);
-                            if (endIndex == -1) {//string cointains only id, no parameters
-                                endIndex = htmlAttributeValue.length();
-                            }
-                            String guessedOldKey = htmlAttributeValue.substring(beginIndex, endIndex);
-                            //TODO: Quickfix
-                            if (guessedOldKey.contains("/")) {
-                                guessedOldKey = guessedOldKey.replaceAll("/", "");
-                            }
-
-                            ResponseMessage.addInfoMessage("Guessed old key " + guessedOldKey);
-                            if (StringUtils.isNumeric(guessedOldKey)) {
-                                //check if content of type custom content, file, image exists
-                                ResponseMessage.addInfoMessage("Check if content is migrated for " + internalLink.replace("://", ""));
-                                Element existingMigratedContent = getExistingContentHandler().getExistingMigratedContentOrCategory(Integer.parseInt(guessedOldKey), internalLink.replace("://", ""));
-
-                                if (existingMigratedContent == null && internalLink.contains("attachment")) {
-                                    //TODO: Doing this because attachment links can be either images, files or content. Check if contentkeys are 100% unique across different types.
-                                    existingMigratedContent = performExtraCheckForAttachments(guessedOldKey);
-                                }
-                                if (existingMigratedContent == null) {
-                                    ResponseMessage.addWarningMessage("linked content not migrated. Replacing " + internalLink + " link with default 'missing key'");
-                                    htmlAttributeValue = htmlAttributeValue.replace(guessedOldKey, pluginEnvironment.getSharedObject("context_missing" + internalLink.replace("://", "") + "key").toString());
-                                    htmlAttribute.setValue(htmlAttributeValue);
-                                } else {
-                                    ResponseMessage.addInfoMessage("Get new key from migrated content");
-                                    String newKey = ((Element) XPath.selectSingleNode(existingMigratedContent, "//newkey")).getValue();
-                                    htmlAttributeValue = htmlAttributeValue.replace(guessedOldKey, newKey);
-                                    htmlAttribute.setValue(htmlAttributeValue);
-                                    ResponseMessage.addInfoMessage("Replaced old key " + guessedOldKey + " with new key " + newKey);
-                                }
-                            } else {
-
-                                ResponseMessage.addWarningMessage("linked content not migrated as no old key could be found in string");
-                                //htmlAttribute.setValue(internalLink + pluginEnvironment.getSharedObject("context_missing" + internalLink.replace("://", "") + "key").toString());
-                            }
-                            break;
-                        } catch (Exception e) {
-                            ResponseMessage.addErrorMessage("Failed to replace internal link key" + e);
-                        }
-                    }
-
-                }
-            }
-            scanHtmlAreaForInternalLinks(htmlEl.getChildren());
-        }
-    }
-
-    private Element performExtraCheckForAttachments(String guessedOldKey) throws Exception {
-        ExistingContentHandler existingContentHandler = getExistingContentHandler();
-        Element existingMigratedContent = getExistingContentHandler().getExistingMigratedContentOrCategory(Integer.parseInt(guessedOldKey), "file");
-        if (existingMigratedContent == null) {
-            existingMigratedContent = getExistingContentHandler().getExistingMigratedContentOrCategory(Integer.parseInt(guessedOldKey), "image");
-        }
-        if (existingMigratedContent == null) {
-            existingMigratedContent = getExistingContentHandler().getExistingMigratedContentOrCategory(Integer.parseInt(guessedOldKey), "content");
-        }
-        return existingMigratedContent;
     }
 
 

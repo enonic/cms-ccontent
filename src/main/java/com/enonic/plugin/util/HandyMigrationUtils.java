@@ -36,7 +36,7 @@ public class HandyMigrationUtils {
     final static XMLOutputter xmloutraw = new XMLOutputter(Format.getRawFormat());
     //final static Logger LOG = LoggerFactory.getLogger(HandyMigrationUtils.class);
 
-    final static int[] CATEGORYKEYS = new int[]{};
+    final static int[] CATEGORYKEYS = new int[]{3847};
 
 
     static {
@@ -57,8 +57,36 @@ public class HandyMigrationUtils {
         //testDraftsVersionsMigration();
         //testAttachmentNotFoundException();
         //testImageNotFoundException();
-        testBinaryNotFoundException();
+        //testBinaryNotFoundException();
+        deleteEmptyCategories(CATEGORYKEYS);
 
+    }
+
+    private static void deleteEmptyCategories(int[] categoryKeys) throws Exception{
+
+        GetCategoriesParams getCategoriesParams = new GetCategoriesParams();
+        getCategoriesParams.includeContentCount=true;
+        getCategoriesParams.includeTopCategory=true;
+        getCategoriesParams.levels=0;
+        for (int cKey : categoryKeys){
+            getCategoriesParams.categoryKey = cKey;
+            Document categories = remoteClient.getCategories(getCategoriesParams);
+            //xmloutraw.setFormat(Format.getPrettyFormat());
+            //xmloutraw.output(categories, System.out);
+        }
+
+        /*DeleteCategoryParams deleteCategoryParams = new DeleteCategoryParams();
+        deleteCategoryParams.includeContent = false;
+        deleteCategoryParams.recursive = true;
+
+        for (int key : categoryKeys) {
+            deleteCategoryParams.key = key;
+            try {
+                remoteClient.deleteCategory(deleteCategoryParams);
+            } catch (ClientException e) {
+                System.out.println(e);
+            }
+        }*/
     }
 
     private static void testBinaryNotFoundException() throws Exception{
