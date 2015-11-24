@@ -831,7 +831,7 @@ public class CopyContentController extends HttpController {
 
         try {
             existingMigratedContent = getExistingContentHandler().getExistingMigratedContentOrCategory(sourceContent.getKey(), "content");
-            if (existingMigratedContent!=null){
+            if (existingMigratedContent != null) {
                 isAlreadyMigrated = true;
             }
         } catch (Exception e) {
@@ -841,7 +841,7 @@ public class CopyContentController extends HttpController {
         Content targetContent = null;
 
         if (isAlreadyMigrated) {
-            if (!updateContent){
+            if (!updateContent) {
                 ResponseMessage.addInfoMessage("aborting because content is already migrated and 'updateContent' is " + updateContent);
                 return;
             }
@@ -849,7 +849,7 @@ public class CopyContentController extends HttpController {
         }
 
         if (targetContent != null) {
-            if (updateContent){
+            if (updateContent) {
                 updateMigratedCustomContent(migratedContent, sourceContent, targetContent);
             }
         } else {
@@ -872,7 +872,7 @@ public class CopyContentController extends HttpController {
             GetContentParams getContentParams = new GetContentParams();
             getContentParams.contentKeys = new int[]{Integer.parseInt(newKeyEl.getValue())};
             getContentParams.includeData = true;
-            getContentParams.includeOfflineContent=true;
+            getContentParams.includeOfflineContent = true;
             Document migratedContentDoc = targetserverClient.getContent(getContentParams);
             Element migratedContentElement = (Element) XPath.selectSingleNode(migratedContentDoc, "contents/content");
 
@@ -959,10 +959,10 @@ public class CopyContentController extends HttpController {
 
                         //Iterate every mapping element in the import config
                         Iterator<Element> blockGroupInputElementsIt = blockGroupInputMappingElements.iterator();
+                        MappingObjectHolder mappingObjectHolder = new MappingObjectHolder();
                         while (blockGroupInputElementsIt.hasNext()) {
                             Element currentInputMappingElement = blockGroupInputElementsIt.next();
                             //TODO: Somewhat cluncky design here. Setters dependent on order.
-                            MappingObjectHolder mappingObjectHolder = new MappingObjectHolder();
                             mappingObjectHolder.setInputMapping(currentInputMappingElement);
                             mappingObjectHolder.setSourceContenttype(migratedContent.getSourceContenttype());
                             mappingObjectHolder.setTargetContenttype(migratedContent.getTargetContenttype());
@@ -983,6 +983,37 @@ public class CopyContentController extends HttpController {
                                 groupInput.add(i);
                             }
                         }
+                        //TODO: Some temporary hardcoding stuff here
+                        if (mappingObjectHolder.getSourceContenttype().getName().equals("artikkel-pasientinformasjon")) {
+                            if ("Bilder".equals(groupName)) {
+                                groupInput = contentDataInput.addGroup(groupName);
+                                try {
+                                    Element logo = (Element) XPath.selectSingleNode(migratedContent.getSourceContentElement(), "contentdata/logo/logo");
+                                    if (logo != null) {
+                                        Element sourceInputElement = ((Element) XPath.selectSingleNode(migratedContent.getSourceContenttypeDoc(), "//input[xpath='contentdata/logo/logo']"));
+                                        mappingObjectHolder.setSourceInputElement(sourceInputElement);
+                                        mappingObjectHolder.setContentInputElement(logo);
+                                        //InputMapper get dest element from this, so we need to set (hack) it
+                                        Element destEl = new Element("mapping");
+                                        destEl.setAttribute("dest","image-binary");
+                                        //don't think this is used for anything but logging though..
+                                        destEl.setAttribute("src", "contentdata/logo/logo");
+                                        mappingObjectHolder.setInputMapping(destEl);
+                                        InputMapper inputMapper = new InputMapper(getClientProvider(), getExistingContentHandler(), pluginEnvironment);
+                                        Input input = inputMapper.getInput(mappingObjectHolder);
+                                        if (input != null) {
+                                            Input sizeInput = new SelectorInput("image-size","small");
+                                            groupInput.add(input);
+                                            groupInput.add(sizeInput);
+                                        }
+                                    }
+                                } catch (Exception e) {
+                                    ResponseMessage.addWarningMessage("Exception in special handling of logo -> Bilder/ in artikkel-pasientinformasjon contenttype");
+                                    LOG.warn("Exception in special handling of subtheme texts -> body-text in artikkel-pasientinformasjon contenttype", e);
+                                }
+                            }
+                        }
+
                     } catch (Exception e) {
                         ResponseMessage.addWarningMessage("Exception when trying to add input field in group " + groupName);
                     }
@@ -1028,6 +1059,39 @@ public class CopyContentController extends HttpController {
                 InputMapper inputMapper = new InputMapper(getClientProvider(), getExistingContentHandler(), pluginEnvironment);
                 Input i = inputMapper.getInput(mappingObjectHolder);
                 if (i != null) {
+                    //TODO: Some temporary hardcoding stuff here
+                    if (mappingObjectHolder.getSourceContenttype().getName().equals("artikkel-pasientinformasjon")) {
+                        if ("body-text".equals(destInput)) {
+                            List<Element> subthemeTexts = XPath.selectNodes(migratedContent.getSourceContentElement(), "contentdata//subtheme/text");
+                            if (subthemeTexts != null && !subthemeTexts.isEmpty()) {
+                                //Keep existing body-text
+                                StringBuffer existingBodyTextHtml = new StringBuffer();
+                                existingBodyTextHtml.append(((HtmlAreaInput) i).getValueAsString());
+
+                                //Append all subtheme texts to body-text
+                                Iterator<Element> subthemeTextsIt = subthemeTexts.iterator();
+                                while (subthemeTextsIt.hasNext()) {
+                                    try {
+                                        Element subthemeTextEl = subthemeTextsIt.next();
+                                        Element sourceInputElement = ((Element) XPath.selectSingleNode(migratedContent.getSourceContenttypeDoc(), "//input[xpath='text']"));
+                                        mappingObjectHolder.setSourceInputElement(sourceInputElement);
+                                        mappingObjectHolder.setContentInputElement(subthemeTextEl);
+                                        Input input = inputMapper.getInput(mappingObjectHolder);
+                                        if (input != null) {
+                                            //Add some spacing
+                                            existingBodyTextHtml.append("\n\n");
+                                            existingBodyTextHtml.append(((HtmlAreaInput) input).getValueAsString());
+                                        }
+                                    } catch (Exception e) {
+                                        ResponseMessage.addWarningMessage("Exception in special handling of subtheme texts -> body-text in artikkel-pasientinformasjon contenttype");
+                                        LOG.warn("Exception in special handling of subtheme texts -> body-text in artikkel-pasientinformasjon contenttype", e);
+                                    }
+
+                                }
+                                i = new HtmlAreaInput("body-text", existingBodyTextHtml.toString());
+                            }
+                        }
+                    }
                     ResponseMessage.addInfoMessage("adding input name:" + i.getName() + " type: + " + i.getType());
                     contentDataInput.add(i);
                 }
@@ -1045,12 +1109,11 @@ public class CopyContentController extends HttpController {
         LOG.info("Content does not exist, create it and create a migrated-content entry");
 
         Integer targetContentKey = null;
-        if (includeVersionsAndDrafts){
+        if (includeVersionsAndDrafts) {
             targetContentKey = createNewMigratedContentWithVersionsAndDrafts(migratedContent, sourceContent);
-        }else{
+        } else {
             targetContentKey = createNewMigratedContent(migratedContent, sourceContent);
         }
-
 
 
         migratedContent.setTitle(sourceContent.getDisplayName());
@@ -1113,21 +1176,21 @@ public class CopyContentController extends HttpController {
             List<Attribute> versionKeysEl = XPath.selectNodes(migratedContent.getSourceContentElement(), "versions/version/@key");
             Iterator<Attribute> versionKeysElIt = versionKeysEl.iterator();
             int[] versionKeys = new int[versionKeysEl.size()];
-            for (int i = 0; i<versionKeysEl.size(); i++){
+            for (int i = 0; i < versionKeysEl.size(); i++) {
                 versionKeys[i] = versionKeysEl.get(i).getIntValue();
             }
             Document versionsDoc = null;
             versionsDoc = getVersionDoc(versionKeys);
 
             Iterator<Element> versionsElIt = versions.iterator();
-            while (versionsElIt.hasNext()){
+            while (versionsElIt.hasNext()) {
                 Element versionEl = versionsElIt.next();
-                boolean isCurrentVersion = versionEl.getAttribute("current")!=null?(versionEl.getAttribute("current").getBooleanValue()):false;
+                boolean isCurrentVersion = versionEl.getAttribute("current") != null ? (versionEl.getAttribute("current").getBooleanValue()) : false;
                 boolean isLastVersion = !versionsElIt.hasNext();
 
                 Integer versionKey = versionEl.getAttribute("key").getIntValue();
-                Element versionContentEl = (Element)XPath.selectSingleNode(versionsDoc, "contents/content[@versionkey="+versionKey+"]");
-                if (newContentKey==null){
+                Element versionContentEl = (Element) XPath.selectSingleNode(versionsDoc, "contents/content[@versionkey=" + versionKey + "]");
+                if (newContentKey == null) {
                     Content firstVersionContent = new Content();
                     firstVersionContent.parseContent(versionContentEl);
                     migratedContent.setSourceContent(firstVersionContent);
@@ -1139,30 +1202,30 @@ public class CopyContentController extends HttpController {
                     Integer statusKey = firstVersionContent.getStatus();
 
                     //NB! API does not allow to create snapshots with createContent
-                    if (statusKey == 1){
+                    if (statusKey == 1) {
                         statusKey = ContentStatus.STATUS_APPROVED;
-                    }else{
+                    } else {
                         createContentParams.status = statusKey;
                     }
                     lastVersionStatus = createContentParams.status;
                     createContentParams.contentData = getMigratedContentData(migratedContent);
-                    if (firstVersionContent.getPublishfrom()!=null){
+                    if (firstVersionContent.getPublishfrom() != null) {
                         createContentParams.publishFrom = firstVersionContent.getPublishfrom();
                     }
-                    if (firstVersionContent.getPublishto()!=null){
+                    if (firstVersionContent.getPublishto() != null) {
                         createContentParams.publishTo = firstVersionContent.getPublishto();
                     }
                     newContentKey = createContentWithImpersonation(firstVersionContent, createContentParams);
                     GetContentParams getContentParams = new GetContentParams();
-                    getContentParams.includeData=false;
-                    getContentParams.includeVersionsInfo=true;
-                    getContentParams.includeOfflineContent=true;
+                    getContentParams.includeData = false;
+                    getContentParams.includeVersionsInfo = true;
+                    getContentParams.includeOfflineContent = true;
                     getContentParams.contentKeys = new int[]{newContentKey};
-                    getContentParams.childrenLevel=0;
+                    getContentParams.childrenLevel = 0;
                     Document newContentDoc = targetServerClient.getContent(getContentParams);
-                    lastVersionKey = ((Attribute)XPath.selectSingleNode(newContentDoc,"contents/content/@versionkey")).getIntValue();
+                    lastVersionKey = ((Attribute) XPath.selectSingleNode(newContentDoc, "contents/content/@versionkey")).getIntValue();
                     ResponseMessage.addInfoMessage("Created migrated content: " + firstVersionContent.getDisplayName());
-                }else{
+                } else {
                     Content newVersionContent = new Content();
                     newVersionContent.parseContent(versionContentEl);
                     migratedContent.setSourceContent(newVersionContent);
@@ -1174,9 +1237,9 @@ public class CopyContentController extends HttpController {
                     Integer statusKey = newVersionContent.getStatus();
                     updateContentParams.setAsCurrentVersion = isCurrentVersion;
 
-                    if (isLastVersion || isCurrentVersion){
+                    if (isLastVersion || isCurrentVersion) {
                         updateContentParams.status = statusKey;
-                    }else{
+                    } else {
                         updateContentParams.status = ContentStatus.STATUS_ARCHIVED;
                     }
 
@@ -1198,16 +1261,16 @@ public class CopyContentController extends HttpController {
                     updateContentParams.updateStrategy = ContentDataInputUpdateStrategy.REPLACE_ALL;
                     updateContentParams.contentKey = newContentKey;
 
-                    if (newVersionContent.getPublishfrom()!=null){
+                    if (newVersionContent.getPublishfrom() != null) {
                         updateContentParams.publishFrom = newVersionContent.getPublishfrom();
                     }
-                    if (newVersionContent.getPublishto()!=null){
+                    if (newVersionContent.getPublishto() != null) {
                         updateContentParams.publishTo = newVersionContent.getPublishto();
                     }
                     try {
                         lastVersionKey = updateMigratedCustomContentWithImpersonation(newVersionContent, updateContentParams);
                         ResponseMessage.addInfoMessage("Updated migrated content: " + newVersionContent.getDisplayName());
-                    }catch (Exception e){
+                    } catch (Exception e) {
                         ResponseMessage.addWarningMessage("Exception when updating migrated content version");
                     }
                 }
@@ -1219,18 +1282,18 @@ public class CopyContentController extends HttpController {
         return newContentKey;
     }
 
-    private Document getVersionDoc(int[] versionKeys){
+    private Document getVersionDoc(int[] versionKeys) {
         RemoteClient sourceserverClient = getSourceserverClient();
         GetContentVersionsParams getContentVersionsParams = new GetContentVersionsParams();
         getContentVersionsParams.contentVersionKeys = versionKeys;
         getContentVersionsParams.contentRequiredToBeOnline = false;
-        getContentVersionsParams.childrenLevel=0;
+        getContentVersionsParams.childrenLevel = 0;
         return sourceserverClient.getContentVersions(getContentVersionsParams);
     }
 
     //Fetch the import config named 'ccontent' or 'ccontent-{source-contenttype}'
     private Element getImportConfig(MigratedContent migratedContent) {
-        if (importConfigs.containsKey(migratedContent.getTargetContenttype().getName())){
+        if (importConfigs.containsKey(migratedContent.getTargetContenttype().getName())) {
             return importConfigs.get(migratedContent.getTargetContenttype().getName());
         }
 
@@ -1263,7 +1326,7 @@ public class CopyContentController extends HttpController {
         Document contentBinary = null;
 
         //contentBinary = sourceserverClient.getContentBinary(getContentBinaryParams);
-        contentBinary = getContentBinaryWithFix4ClientExceptionWhenArchived(sourceserverClient,getContentBinaryParams);
+        contentBinary = getContentBinaryWithFix4ClientExceptionWhenArchived(sourceserverClient, getContentBinaryParams);
 
         if (contentBinary == null) {
             ResponseMessage.addWarningMessage("File binary not found, skipping file");
@@ -1419,24 +1482,25 @@ public class CopyContentController extends HttpController {
         Document contentBinary = null;
         try {
             contentBinary = sourceserverClient.getContentBinary(getContentBinaryParams);
-        }catch (ClientException cx){
-            if (contentBinary==null && cx.getMessage()!=null && cx.getMessage().contains("Attachment not found"));{
+        } catch (ClientException cx) {
+            if (contentBinary == null && cx.getMessage() != null && cx.getMessage().contains("Attachment not found")) ;
+            {
                 ResponseMessage.addInfoMessage("Known bug encountered. A binary could not be fetched because it is archived");
                 //Approve binary content temporarily, so it can be fetched
                 UpdateContentParams updateContentParams = new UpdateContentParams();
-                updateContentParams.contentKey=getContentBinaryParams.contentKey;
-                updateContentParams.status=ContentStatus.STATUS_APPROVED;
+                updateContentParams.contentKey = getContentBinaryParams.contentKey;
+                updateContentParams.status = ContentStatus.STATUS_APPROVED;
                 updateContentParams.publishFrom = new Date();
                 updateContentParams.updateStrategy = ContentDataInputUpdateStrategy.REPLACE_NEW;
                 sourceserverClient.updateContent(updateContentParams);
                 //Fetch it
                 contentBinary = sourceserverClient.getContentBinary(getContentBinaryParams);
                 //Set the status of content back to 'archived' and log result
-                updateContentParams.status=ContentStatus.STATUS_ARCHIVED;
+                updateContentParams.status = ContentStatus.STATUS_ARCHIVED;
                 sourceserverClient.updateContent(updateContentParams);
-                if (contentBinary!=null){
+                if (contentBinary != null) {
                     ResponseMessage.addInfoMessage("Applied fix for known bug with 'attachment not found'. Approved it; migrated it; re-archived it");
-                }else{
+                } else {
                     ResponseMessage.addWarningMessage("Applied bug-fix code for 'attachment not found', but it is still null!");
                 }
             }
