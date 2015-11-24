@@ -895,6 +895,7 @@ public class CopyContentController extends HttpController {
         UpdateContentParams updateContentParams = new UpdateContentParams();
         updateContentParams.contentKey = targetContent.getKey();
         updateContentParams.changeComment = "ccontent plugin updated content from content with key " + sourceContent.getKey();
+
         updateContentParams.updateStrategy = ContentDataInputUpdateStrategy.REPLACE_NEW;
 
         if (sourceContent.getPublishfrom() != null) {
@@ -949,23 +950,62 @@ public class CopyContentController extends HttpController {
                 List<Element> blockGroupContents = XPath.selectNodes(migratedContent.getSourceContentElement(), groupBase);
                 Iterator<Element> blockGroupContentsIt = blockGroupContents.iterator();
 
+                MappingObjectHolder mappingObjectHolder = new MappingObjectHolder();
+                mappingObjectHolder.setSourceContenttype(migratedContent.getSourceContenttype());
+                mappingObjectHolder.setTargetContenttype(migratedContent.getTargetContenttype());
+
+                //TODO: Some temporary hardcoding stuff here, add image into block group 'Bilder' from logo source input
+                if (mappingObjectHolder.getSourceContenttype().getName().equals("artikkel-pasientinformasjon")) {
+                    if ("Bilder".equals(groupName)) {
+                        //Add a new group input to our migrated content
+                        try {
+                            Element logo = (Element) XPath.selectSingleNode(migratedContent.getSourceContentElement(), "contentdata/logo/logo");
+                            if (logo != null) {
+                                Element sourceInputElement = ((Element) XPath.selectSingleNode(migratedContent.getSourceContenttypeDoc(), "//input[xpath='contentdata/logo/logo']"));
+                                mappingObjectHolder.setSourceInputElement(sourceInputElement);
+                                mappingObjectHolder.setContentInputElement(logo);
+                                //InputMapper get dest element from this, so we need to set (hack) it
+                                Element destEl = new Element("mapping");
+                                destEl.setAttribute("dest","image-binary");
+                                //don't think this is used for anything but logging though..
+                                destEl.setAttribute("src", "contentdata/logo/logo");
+                                mappingObjectHolder.setInputMapping(destEl);
+                                InputMapper inputMapper = new InputMapper(getClientProvider(), getExistingContentHandler(), pluginEnvironment);
+                                Input input = inputMapper.getInput(mappingObjectHolder);
+                                if (input != null) {
+                                    Input sizeInput = new SelectorInput("image-size","small");
+                                    Input textInput = new TextInput("image-description","Logo");
+                                    GroupInput groupInput = contentDataInput.addGroup(groupName);
+                                    groupInput.add(textInput);
+                                    groupInput.add(input);
+                                    groupInput.add(sizeInput);
+                                    mappingObjectHolder.setSourceInputElement(null);
+                                    mappingObjectHolder.setTargetInputElement(null);
+                                    mappingObjectHolder.setContentInputElement(null);
+                                }
+                            }
+                        } catch (Exception e) {
+                            ResponseMessage.addWarningMessage("Exception in special handling of logo -> Bilder/ in artikkel-pasientinformasjon contenttype");
+                            LOG.warn("Exception in special handling of subtheme texts -> body-text in artikkel-pasientinformasjon contenttype", e);
+                        }
+                    }
+                }
+
                 //Iterate content in each block group base
                 while (blockGroupContentsIt.hasNext()) {
                     try {
                         Element blockGroupContent = blockGroupContentsIt.next();
 
                         //Add a new group input to our migrated content
-                        GroupInput groupInput = contentDataInput.addGroup(groupName);
+                        GroupInput groupInput =  contentDataInput.addGroup(groupName);
 
                         //Iterate every mapping element in the import config
                         Iterator<Element> blockGroupInputElementsIt = blockGroupInputMappingElements.iterator();
-                        MappingObjectHolder mappingObjectHolder = new MappingObjectHolder();
+
                         while (blockGroupInputElementsIt.hasNext()) {
                             Element currentInputMappingElement = blockGroupInputElementsIt.next();
                             //TODO: Somewhat cluncky design here. Setters dependent on order.
                             mappingObjectHolder.setInputMapping(currentInputMappingElement);
-                            mappingObjectHolder.setSourceContenttype(migratedContent.getSourceContenttype());
-                            mappingObjectHolder.setTargetContenttype(migratedContent.getTargetContenttype());
                             mappingObjectHolder.setSourceInputElement(
                                     ((Element) XPath.selectSingleNode(migratedContent.getSourceContenttypeDoc(), "//input[xpath='" + mappingObjectHolder.getInputMappingSrc() + "']")));
                             mappingObjectHolder.setTargetInputElement(
@@ -983,41 +1023,11 @@ public class CopyContentController extends HttpController {
                                 groupInput.add(i);
                             }
                         }
-                        //TODO: Some temporary hardcoding stuff here
-                        if (mappingObjectHolder.getSourceContenttype().getName().equals("artikkel-pasientinformasjon")) {
-                            if ("Bilder".equals(groupName)) {
-                                groupInput = contentDataInput.addGroup(groupName);
-                                try {
-                                    Element logo = (Element) XPath.selectSingleNode(migratedContent.getSourceContentElement(), "contentdata/logo/logo");
-                                    if (logo != null) {
-                                        Element sourceInputElement = ((Element) XPath.selectSingleNode(migratedContent.getSourceContenttypeDoc(), "//input[xpath='contentdata/logo/logo']"));
-                                        mappingObjectHolder.setSourceInputElement(sourceInputElement);
-                                        mappingObjectHolder.setContentInputElement(logo);
-                                        //InputMapper get dest element from this, so we need to set (hack) it
-                                        Element destEl = new Element("mapping");
-                                        destEl.setAttribute("dest","image-binary");
-                                        //don't think this is used for anything but logging though..
-                                        destEl.setAttribute("src", "contentdata/logo/logo");
-                                        mappingObjectHolder.setInputMapping(destEl);
-                                        InputMapper inputMapper = new InputMapper(getClientProvider(), getExistingContentHandler(), pluginEnvironment);
-                                        Input input = inputMapper.getInput(mappingObjectHolder);
-                                        if (input != null) {
-                                            Input sizeInput = new SelectorInput("image-size","small");
-                                            groupInput.add(input);
-                                            groupInput.add(sizeInput);
-                                        }
-                                    }
-                                } catch (Exception e) {
-                                    ResponseMessage.addWarningMessage("Exception in special handling of logo -> Bilder/ in artikkel-pasientinformasjon contenttype");
-                                    LOG.warn("Exception in special handling of subtheme texts -> body-text in artikkel-pasientinformasjon contenttype", e);
-                                }
-                            }
-                        }
-
                     } catch (Exception e) {
                         ResponseMessage.addWarningMessage("Exception when trying to add input field in group " + groupName);
                     }
                 }
+
             } catch (Exception e) {
                 ResponseMessage.addErrorMessage("Exception while handling block inputs" + e);
             }
