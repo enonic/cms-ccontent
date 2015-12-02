@@ -18,6 +18,8 @@ import org.jdom.output.XMLOutputter;
 import org.jdom.xpath.XPath;
 
 import javax.net.ssl.*;
+import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -31,7 +33,7 @@ import java.util.*;
 * */
 public class HandyMigrationUtils {
 
-    final static RemoteClient remoteClient = ClientFactory.getRemoteClient("http://localhost:8080/rpc/bin");
+    final static RemoteClient remoteClient = ClientFactory.getRemoteClient("http://80.65.59.142:8080/rpc/bin");
 
     final static XMLOutputter xmloutraw = new XMLOutputter(Format.getRawFormat());
     //final static Logger LOG = LoggerFactory.getLogger(HandyMigrationUtils.class);
@@ -48,7 +50,14 @@ public class HandyMigrationUtils {
 
 
     public static void main(String args[]) throws Exception {
-        String userName = remoteClient.login("admin", "password");
+
+
+        Scanner userInput = new Scanner(System.in);
+        System.out.println("Username: ");
+        String user = userInput.next();
+        System.out.println("Password: ");
+        String password = userInput.next();
+        String userName = remoteClient.login(user,password);
         System.out.println("Logged in " + userName);
 
         //deleteCategories(CATEGORYKEYS);
@@ -58,7 +67,52 @@ public class HandyMigrationUtils {
         //testAttachmentNotFoundException();
         //testImageNotFoundException();
         //testBinaryNotFoundException();
-        deleteEmptyCategories(CATEGORYKEYS);
+        //deleteEmptyCategories(CATEGORYKEYS);
+        fixImagesInHTMLAreas();
+    }
+
+    private static void fixImagesInHTMLAreas() throws Exception{
+        GetContentByCategoryParams getContentByCategoryParams = new GetContentByCategoryParams();
+        getContentByCategoryParams.categoryKeys = new int[]{3918};
+        getContentByCategoryParams.query = "contenttype!='HB-bilde' and contenttype!='HB-fil'";
+        getContentByCategoryParams.count=10000;
+        getContentByCategoryParams.includeData=false;
+        getContentByCategoryParams.includeOfflineContent=true;
+        getContentByCategoryParams.includeUserRights=false;
+        getContentByCategoryParams.levels=10;
+        getContentByCategoryParams.childrenLevel=0;
+        Document doc = remoteClient.getContentByCategory(getContentByCategoryParams);
+
+        List<Element> contents = XPath.selectNodes(doc, "contents/content");
+
+        System.out.println(contents.size() + " contents");
+        ArrayList<String> contenttypes = new ArrayList<String>();
+        Iterator<Element> contentsIt = contents.iterator();
+        while (contentsIt.hasNext()){
+            Element content = contentsIt.next();
+            String contenttype = content.getAttributeValue("contenttype");
+            if (!contenttypes.contains(contenttype)){
+                contenttypes.add(contenttype);
+            }
+        }
+
+        System.out.println(contenttypes.size() + " contenttypes");
+        for (String contenttype : contenttypes){
+            System.out.println(contenttype);
+            GetContentTypeConfigXMLParams getContentTypeConfigXMLParams = new GetContentTypeConfigXMLParams();
+            getContentTypeConfigXMLParams.name = contenttype;
+            Document contenttypeDoc = remoteClient.getContentTypeConfigXML(getContentTypeConfigXMLParams);
+            XPath xPath = XPath.newInstance("//input[@type='htmlarea']");
+            List<Element> htmlAreaElements = xPath.selectNodes(contenttypeDoc);
+            for (Element htmlAreaEl : htmlAreaElements){
+                System.out.println("htmlarea name: " + htmlAreaEl.getAttributeValue("name"));
+                List<Element> htmlElements = htmlAreaEl.getChildren();
+            }
+        }
+
+
+        xmloutraw.output(doc, new FileWriter("/Users/rfo/development/sourcecode/enonic/cms-ccontent/fagprosedyrer.xml"));
+
 
     }
 

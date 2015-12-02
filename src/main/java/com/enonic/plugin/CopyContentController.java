@@ -974,9 +974,7 @@ public class CopyContentController extends HttpController {
                                 Input input = inputMapper.getInput(mappingObjectHolder);
                                 if (input != null) {
                                     Input sizeInput = new SelectorInput("image-size","small");
-                                    Input textInput = new TextInput("image-description","Logo");
                                     GroupInput groupInput = contentDataInput.addGroup(groupName);
-                                    groupInput.add(textInput);
                                     groupInput.add(input);
                                     groupInput.add(sizeInput);
                                     mappingObjectHolder.setSourceInputElement(null);

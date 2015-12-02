@@ -273,7 +273,6 @@ public class InputMapper {
 
         if (htmlElements != null && !htmlElements.isEmpty()) {
             try {
-                ResponseMessage.addWarningMessage("Error when scanning htmlArea for internal links");
                 scanHtmlAreaForInternalLinks(htmlElements);
             } catch (Exception e) {
                 ResponseMessage.addWarningMessage("Error when scanning htmlArea for internal links");
